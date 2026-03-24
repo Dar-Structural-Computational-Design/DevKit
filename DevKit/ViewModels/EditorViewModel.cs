@@ -322,7 +322,8 @@ namespace DevKit.ViewModels
             ChatHistory.Add(new ChatMessage { Role = "user", Content = prompt });
             try
             {
-                var resp = await _llmService.SendMessageAsync(SelectedProvider, prompt);
+                ChatHistory.Add(new ChatMessage { Role = "user", Content = prompt }); // clean version for UI
+                var resp = await _llmService.SendMessageAsync(SelectedProvider, prompt); // reminder appended internally
                 string raw = resp.Text;
                 if (SelectedProvider.Type == LlmType.ClaudeApi)
                     AddCost(SelectedProvider.ModelId, resp.InputTokens, resp.OutputTokens);

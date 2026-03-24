@@ -26,9 +26,13 @@ namespace DevKit.Services
 You can have normal conversations, answer questions, discuss Revit API concepts, and help plan solutions.
 
 When the user asks you to WRITE or GENERATE code, follow these rules for the code output:
-- The user writes only the BODY of an Execute method.
+- The user writes only the BODY of an IExternalCommand.Execute method that returns Result.
 - These variables are already declared: UIApplication uiApp, UIDocument uiDoc, Document doc
-- These usings are already included: System, System.Collections.Generic, System.Linq, System.IO,
+- The code is wrapped in a try/catch that already returns Result.Succeeded at the end and Result.Failed on exception.
+- Do NOT add return Result.Succeeded at the end — it is already handled by the wrapper.
+- Do NOT add return Result.Failed or try/catch — the wrapper handles exceptions.
+- If you need an early exit, use: return Result.Cancelled;
+- NEVER use bare ""return;"" — always use ""return Result.Cancelled;"" or ""return Result.Succeeded;"" for early exits.- These usings are already included: System, System.Collections.Generic, System.Linq, System.IO,
   Autodesk.Revit.UI, Autodesk.Revit.UI.Selection, Autodesk.Revit.DB, Autodesk.Revit.DB.Architecture,
   Autodesk.Revit.DB.Structure.
 - Output ONLY the C# code body. No class, no method signature, no markdown fences.
@@ -50,7 +54,17 @@ BEHAVIOR RULES:
 - If you need to explain something alongside code, put the explanation FIRST, then a line that says exactly: ---CODE---
   Then put only the code after that marker.
 - When the user reports an error, fix the code and output the COMPLETE fixed code body.
-- When the user asks to modify existing code, output the COMPLETE modified code body.";
+- When the user asks to modify existing code, output the COMPLETE modified code body.
+- NEVER wrap code in markdown fences like ```csharp or ```. Output raw code only.
+- NEVER add explanatory text mixed into the code. If you must explain, put it BEFORE the code separated by ---CODE---
+- When modifying existing code, output the COMPLETE modified code body — raw code only, no markdown, no commentary inside the code.
+- NEVER define classes, structs, enums, interfaces, or methods outsode of the method's body. All code must be inline within the method body.
+- If you need a selection filter, use an anonymous/lambda approach or inline the logic. Do NOT create a separate ISelectionFilter class.
+- For selection filters, use this pattern instead of creating a class:
+  var ref = uiDoc.Selection.PickObject(ObjectType.Element, ""Select an element"");
+  Element elem = doc.GetElement(ref);
+  if (elem.Category.Id.IntegerValue != (int)BuiltInCategory.OST_Floors) { TaskDialog.Show(""Error"", ""Not a floor""); return Result.Cancelled; }";
+
 
         private readonly List<ChatMessage> _history = new List<ChatMessage>();
         public IReadOnlyList<ChatMessage> History => _history.AsReadOnly();
@@ -105,7 +119,15 @@ BEHAVIOR RULES:
         /// </summary>
         public async Task<LlmResponse> SendMessageAsync(LlmProvider provider, string userMessage)
         {
-            _history.Add(new ChatMessage { Role = "user", Content = userMessage });
+            string reminder = "\n\n[RULES: Raw code only. No markdown fences. No classes/structs/enums. " +
+                    "Inline everything. No bare return; — use return Result.Cancelled; for early exit. " +
+                    "Validate selections with LINQ after PickObject, not ISelectionFilter.]";
+
+            _history.Add(new ChatMessage { Role = "user", Content = userMessage + reminder });
+
+            // Trim: keep system prompt + last 5 messages
+            TrimHistory(5);
+
             try
             {
                 LlmResponse response;
@@ -153,7 +175,20 @@ BEHAVIOR RULES:
             // It's just conversation
             return (text, "");
         }
+        private void TrimHistory(int maxMessages)
+        {
+            // Count non-system messages
+            var nonSystem = _history.Where(m => m.Role != "system").ToList();
+            if (nonSystem.Count <= maxMessages) return;
 
+            // Keep system prompt + last N messages
+            var system = _history.Where(m => m.Role == "system").ToList();
+            var keep = nonSystem.Skip(nonSystem.Count - maxMessages).ToList();
+
+            _history.Clear();
+            _history.AddRange(system);
+            _history.AddRange(keep);
+        }
         public string BuildErrorFixMessage(string currentCode, string errorText)
         {
             return $"The following code has an error. Fix it and return the COMPLETE corrected code body.\n\nCURRENT CODE:\n{currentCode}\n\nERROR:\n{errorText}";

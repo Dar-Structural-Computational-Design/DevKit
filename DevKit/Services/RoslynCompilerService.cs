@@ -12,34 +12,7 @@ namespace DevKit.Services
 {
     public class RoslynCompilerService
     {
-        private const string TEST_TEMPLATE = @"
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.IO;
-using Autodesk.Revit.UI;
-using Autodesk.Revit.UI.Selection;
-using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Architecture;
-using Autodesk.Revit.DB.Structure;
-{2}
-
-namespace DevKit.DynamicScripts
-{{
-    public class {0}
-    {{
-        public static void Run(UIApplication uiApp)
-        {{
-            UIDocument uiDoc = uiApp.ActiveUIDocument;
-            Document doc = uiDoc.Document;
-
-            {1}
-        }}
-    }}
-}}
-";
-
-        private const string BUILD_TEMPLATE = @"
+        private const string TEMPLATE = @"
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -60,11 +33,43 @@ namespace DevKit.DynamicScripts
     {{
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {{
-            UIApplication uiApp = commandData.Application;
+            try
+            {{
+                return RunBody(commandData.Application);
+            }}
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            {{
+                return Result.Cancelled;
+            }}
+            catch (Exception ex)
+            {{
+                message = ex.Message;
+                TaskDialog.Show(""Script Error"", ex.ToString());
+                return Result.Failed;
+            }}
+        }}
+
+        public static void Run(UIApplication uiApp)
+        {{
+            try
+            {{
+                RunBody(uiApp);
+            }}
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) {{ }}
+            catch (Exception ex)
+            {{
+                throw;
+            }}
+        }}
+
+        private static Result RunBody(UIApplication uiApp)
+        {{
             UIDocument uiDoc = uiApp.ActiveUIDocument;
             Document doc = uiDoc.Document;
-          
+
             {1}
+
+            return Result.Succeeded;
         }}
     }}
 }}
@@ -86,14 +91,14 @@ namespace DevKit.DynamicScripts
         public CompilationResult CompileForTest(string userCode, string className)
         {
             var (extraUsings, body) = ExtractUsings(userCode);
-            string src = string.Format(TEST_TEMPLATE, className, body, extraUsings);
+            string src = string.Format(TEMPLATE, className, body, extraUsings);
             return Compile(src, "DK_Test_" + Guid.NewGuid().ToString("N").Substring(0, 8), className, false, null);
         }
 
         public CompilationResult CompileForBuild(string userCode, string className, string outputDllPath)
         {
             var (extraUsings, body) = ExtractUsings(userCode);
-            string src = string.Format(BUILD_TEMPLATE, className, body, extraUsings);
+            string src = string.Format(TEMPLATE, className, body, extraUsings);
             return Compile(src, Path.GetFileNameWithoutExtension(outputDllPath), className, true, outputDllPath);
         }
 
