@@ -92,14 +92,16 @@ namespace DevKit.DynamicScripts
         {
             var (extraUsings, body) = ExtractUsings(userCode);
             string src = string.Format(TEMPLATE, className, body, extraUsings);
-            return Compile(src, "DK_Test_" + Guid.NewGuid().ToString("N").Substring(0, 8), className, false, null);
+            var (lineOff, colOff) = CountOffsets(src, body);
+            return Compile(src, "DK_Test_" + Guid.NewGuid().ToString("N").Substring(0, 8), className, false, null, lineOff, colOff);
         }
 
         public CompilationResult CompileForBuild(string userCode, string className, string outputDllPath)
         {
             var (extraUsings, body) = ExtractUsings(userCode);
             string src = string.Format(TEMPLATE, className, body, extraUsings);
-            return Compile(src, Path.GetFileNameWithoutExtension(outputDllPath), className, true, outputDllPath);
+            var (lineOff, colOff) = CountOffsets(src, body);
+            return Compile(src, Path.GetFileNameWithoutExtension(outputDllPath), className, true, outputDllPath, lineOff, colOff);
         }
 
         private static (string extraUsings, string codeBody) ExtractUsings(string userCode)
@@ -123,7 +125,7 @@ namespace DevKit.DynamicScripts
             return (string.Join("\n", usings), string.Join("\n", body));
         }
 
-        private CompilationResult Compile(string source, string asmName, string className, bool toDisk, string outputPath)
+        private CompilationResult Compile(string source, string asmName, string className, bool toDisk, string outputPath, int lineOffset, int colOffset)
         {
             var tree = CSharpSyntaxTree.ParseText(source);
             var refs = GatherReferences();
@@ -135,13 +137,13 @@ namespace DevKit.DynamicScripts
             if (toDisk)
             {
                 EmitResult r = compilation.Emit(outputPath);
-                if (!r.Success) { TryDelete(outputPath); return ErrResult(r); }
+                if (!r.Success) { TryDelete(outputPath); return ErrResult(r, lineOffset, colOffset); }
                 return new CompilationResult { Success = true, DllPath = outputPath, ClassName = $"DevKit.DynamicScripts.{className}" };
             }
             using (var ms = new MemoryStream())
             {
                 EmitResult r = compilation.Emit(ms);
-                if (!r.Success) return ErrResult(r);
+                if (!r.Success) return ErrResult(r, lineOffset, colOffset);
                 ms.Seek(0, SeekOrigin.Begin);
                 return new CompilationResult { Success = true, CompiledAssembly = Assembly.Load(ms.ToArray()), ClassName = $"DevKit.DynamicScripts.{className}" };
             }
@@ -167,15 +169,34 @@ namespace DevKit.DynamicScripts
                 try { if (added.Add(dll)) refs.Add(MetadataReference.CreateFromFile(dll)); } catch { }
         }
 
-        private CompilationResult ErrResult(EmitResult r) => new CompilationResult
+        private CompilationResult ErrResult(EmitResult r, int lineOffset, int colOffset) => new CompilationResult
         {
             Success = false,
             Errors = r.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d =>
             {
                 var s = d.Location.GetLineSpan();
-                return $"Line {Math.Max(1, s.StartLinePosition.Line - 20 + 1)}, Col {s.StartLinePosition.Character + 1}: {d.GetMessage()} [{d.Id}]";
+                int line = Math.Max(1, s.StartLinePosition.Line - lineOffset + 1);
+                int col = s.StartLinePosition.Character + 1;
+                if (s.StartLinePosition.Line == lineOffset)
+                    col = Math.Max(1, col - colOffset);
+                return $"Line {line}, Col {col}: {d.GetMessage()} [{d.Id}]";
             }).ToList()
         };
+
+        private static (int lineOffset, int colOffset) CountOffsets(string fullSource, string userBody)
+        {
+            if (string.IsNullOrEmpty(userBody)) return (0, 0);
+            int idx = fullSource.IndexOf(userBody);
+            if (idx < 0) return (0, 0);
+            int lines = 0;
+            int colOffset = 0;
+            for (int i = 0; i < idx; i++)
+            {
+                if (fullSource[i] == '\n') { lines++; colOffset = 0; }
+                else colOffset++;
+            }
+            return (lines, colOffset);
+        }
 
         private void TryDelete(string p) { try { if (p != null && File.Exists(p)) File.Delete(p); } catch { } }
     }

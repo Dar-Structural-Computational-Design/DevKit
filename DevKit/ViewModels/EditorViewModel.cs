@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using DevKit.Helpers;
@@ -23,7 +25,9 @@ namespace DevKit.ViewModels
         private string _code = "TaskDialog.Show(\"Hello\", \"Hello from DevKit!\\nDocument: \" + doc.Title);";
         private string _buttonName = "My Script";
         private string _outputText = "", _statusText = "Ready", _statusColor = "#6C7086";
-        private bool _isOutputError, _buttonsEnabled = true, _hasError, _isAiGenerating, _isDarkTheme = true;
+        private bool _isOutputError, _buttonsEnabled = true, _hasError, _isAiGenerating;
+        private ThemeInfo _selectedTheme;
+        private Window _ownerWindow;
         private Snippet _selectedSnippet;
         private ScriptEntry _selectedScript;
         private int _selectedTabIndex;
@@ -33,6 +37,10 @@ namespace DevKit.ViewModels
         private string _lastError = "";
         private UserSettings _settings;
         private double _totalCost;
+        private bool _isTurboMode;
+        private const double DAILY_LIMIT_NORMAL = 1.0;
+        private const double DAILY_LIMIT_TURBO = 5.0;
+        private const string TURBO_PASSWORD = "devkit2026";
 
         public string Code { get => _code; set => SetProperty(ref _code, value); }
         public string ButtonName { get => _buttonName; set => SetProperty(ref _buttonName, value); }
@@ -51,10 +59,22 @@ namespace DevKit.ViewModels
         public string SelectedGroup { get => _selectedGroup; set => SetProperty(ref _selectedGroup, value); }
         public string MoveToGroup { get => _moveToGroup; set => SetProperty(ref _moveToGroup, value); }
         public bool IsClaudeSelected => _selectedProvider?.Type == LlmType.ClaudeApi;
-        public bool IsDarkTheme { get => _isDarkTheme; set => SetProperty(ref _isDarkTheme, value); }
-        public double TotalCost { get => _totalCost; set { SetProperty(ref _totalCost, value); OnPropertyChanged(nameof(TotalCostDisplay)); } }
+        public List<ThemeInfo> AvailableThemes { get; } = ThemeManager.GetAllThemes();
+        public ThemeInfo SelectedTheme
+        {
+            get => _selectedTheme;
+            set
+            {
+                if (SetProperty(ref _selectedTheme, value) && value != null && _ownerWindow != null)
+                    ThemeManager.ApplyToWindow(_ownerWindow, value.Key);
+            }
+        }
+        public double TotalCost { get => _totalCost; set { SetProperty(ref _totalCost, value); OnPropertyChanged(nameof(TotalCostDisplay)); OnPropertyChanged(nameof(DailyLimitDisplay)); } }
         public string TotalCostDisplay => $"💰 ${_totalCost:F4}";
-        public string ThemeIcon => _isDarkTheme ? "☀" : "🌙";
+        public bool IsTurboMode { get => _isTurboMode; set { if (SetProperty(ref _isTurboMode, value)) { OnPropertyChanged(nameof(TurboModeLabel)); OnPropertyChanged(nameof(DailyLimitDisplay)); } } }
+        public string TurboModeLabel => _isTurboMode ? "TURBO ON" : "TURBO OFF";
+        public double DailyLimit => _isTurboMode ? DAILY_LIMIT_TURBO : DAILY_LIMIT_NORMAL;
+        public string DailyLimitDisplay => $"${_totalCost:F2} / ${DailyLimit:F2}";
 
         public Snippet SelectedSnippet
         {
@@ -89,7 +109,7 @@ namespace DevKit.ViewModels
         public ICommand MoveScriptCommand { get; }
         public ICommand ExportScriptCommand { get; }
         public ICommand ImportPackageCommand { get; }
-        public ICommand ToggleThemeCommand { get; }
+        public ICommand ToggleTurboCommand { get; }
 
         public EditorViewModel()
         {
@@ -116,7 +136,24 @@ namespace DevKit.ViewModels
             MoveScriptCommand = new RelayCommand(ExecuteMoveScript);
             ExportScriptCommand = new RelayCommand(ExecuteExportScript);
             ImportPackageCommand = new RelayCommand(ExecuteImportPackage);
-            ToggleThemeCommand = new RelayCommand<object>(ExecuteToggleTheme);
+            ToggleTurboCommand = new RelayCommand(ExecuteToggleTurbo);
+
+            // Load daily cost — reset if it's a new day
+            string today = DateTime.Now.ToString("yyyy-MM-dd");
+            if (_settings.DailyCostDate == today)
+            {
+                _totalCost = _settings.DailyCost;
+                _isTurboMode = _settings.IsTurboMode;
+            }
+            else
+            {
+                _settings.DailyCost = 0;
+                _settings.DailyCostDate = today;
+                _settings.IsTurboMode = false;
+                _settings.Save(DevKitApp.ScriptsFolderPath);
+            }
+
+            _selectedTheme = AvailableThemes[0];
 
             foreach (var s in SnippetService.GetAll()) Snippets.Add(s);
 
@@ -127,15 +164,7 @@ namespace DevKit.ViewModels
         }
 
         // ── THEME ──
-        private void ExecuteToggleTheme(object param)
-        {
-            if (param is Window w)
-            {
-                IsDarkTheme = !IsDarkTheme;
-                ThemeManager.ApplyToWindow(w, IsDarkTheme);
-                OnPropertyChanged(nameof(ThemeIcon));
-            }
-        }
+        public void SetOwnerWindow(Window w) => _ownerWindow = w;
 
         // ── TEST ──
         private void ExecuteTest()
@@ -317,12 +346,26 @@ namespace DevKit.ViewModels
         {
             if (SelectedProvider == null) { ShowError("No LLM selected."); return; }
             if (SelectedProvider.Type == LlmType.ClaudeApi && string.IsNullOrWhiteSpace(SelectedProvider.ApiKey)) { ShowError("Enter Claude API key and click Save."); return; }
+            if (SelectedProvider.Type == LlmType.ClaudeApi && !CheckDailyLimit()) return;
             string prompt = AiPrompt?.Trim(); if (string.IsNullOrEmpty(prompt)) { ShowError("Enter a prompt."); return; }
-            IsAiGenerating = true; AiStatus = "Generating..."; SetStatus("AI working...", "#CBA6F7");
+
+            string complexReason = CheckComplexity(prompt);
+            if (complexReason != null)
+            {
+                AiPrompt = "";
+                ChatHistory.Add(new ChatMessage { Role = "user", Content = prompt });
+                string msg = $"This request involves: {complexReason}\n\n{CDT_MESSAGE}";
+                ChatHistory.Add(new ChatMessage { Role = "assistant", Content = msg });
+                ShowError(msg);
+                SetStatus("Complex request — contact CDT.", "#F9E2AF");
+                return;
+            }
+
+            AiPrompt = "";
+            IsAiGenerating = true; ButtonsEnabled = false; AiStatus = "Generating..."; SetStatus("AI working...", "#CBA6F7");
             ChatHistory.Add(new ChatMessage { Role = "user", Content = prompt });
             try
             {
-                ChatHistory.Add(new ChatMessage { Role = "user", Content = prompt }); // clean version for UI
                 var resp = await _llmService.SendMessageAsync(SelectedProvider, prompt); // reminder appended internally
                 string raw = resp.Text;
                 if (SelectedProvider.Type == LlmType.ClaudeApi)
@@ -339,14 +382,15 @@ namespace DevKit.ViewModels
                 else { AiStatus = "Response received."; SetStatus("AI responded.", "#7AA2F7"); ShowOutput(chat); }
             }
             catch (Exception ex) { ShowError($"AI error:\n{ex.Message}"); AiStatus = $"Error: {ex.Message}"; SetStatus("AI failed.", "#F38BA8"); }
-            finally { IsAiGenerating = false; }
+            finally { IsAiGenerating = false; ButtonsEnabled = true; }
         }
         private async Task ExecuteAiSendError()
         {
             if (SelectedProvider == null) { ShowError("No LLM selected."); return; }
             if (SelectedProvider.Type == LlmType.ClaudeApi && string.IsNullOrWhiteSpace(SelectedProvider.ApiKey)) { ShowError("Enter Claude API key."); return; }
+            if (SelectedProvider.Type == LlmType.ClaudeApi && !CheckDailyLimit()) return;
             if (string.IsNullOrEmpty(_lastError)) { ShowError("No error. Test first (F5)."); return; }
-            IsAiGenerating = true; AiStatus = "Fixing..."; SetStatus("AI fixing...", "#CBA6F7");
+            IsAiGenerating = true; ButtonsEnabled = false; AiStatus = "Fixing..."; SetStatus("AI fixing...", "#CBA6F7");
             ChatHistory.Add(new ChatMessage { Role = "user", Content = $"[Error Fix]\n{_lastError}" });
             try
             {
@@ -367,7 +411,128 @@ namespace DevKit.ViewModels
                 else { ShowError("Empty fix."); }
             }
             catch (Exception ex) { ShowError($"AI error:\n{ex.Message}"); AiStatus = $"Error: {ex.Message}"; }
-            finally { IsAiGenerating = false; }
+            finally { IsAiGenerating = false; ButtonsEnabled = true; }
+        }
+
+        // ── Turbo Mode ──
+        private void ExecuteToggleTurbo()
+        {
+            if (!_isTurboMode)
+            {
+                var dlg = new Window
+                {
+                    Title = "Turbo Mode", Width = 340, Height = 160, WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = _ownerWindow, ResizeMode = ResizeMode.NoResize, Background = System.Windows.Media.Brushes.White
+                };
+                var sp = new StackPanel { Margin = new Thickness(16) };
+                sp.Children.Add(new TextBlock { Text = "Enter Turbo Mode password:", Margin = new Thickness(0, 0, 0, 8), FontSize = 13 });
+                var pwdBox = new PasswordBox { FontSize = 13, Padding = new Thickness(6, 4, 6, 4) };
+                sp.Children.Add(pwdBox);
+                var btn = new Button { Content = "Activate", Margin = new Thickness(0, 12, 0, 0), Padding = new Thickness(20, 6, 20, 6), HorizontalAlignment = HorizontalAlignment.Right };
+                btn.Click += (s, e) => { dlg.Tag = pwdBox.Password; dlg.DialogResult = true; };
+                sp.Children.Add(btn);
+                dlg.Content = sp;
+                pwdBox.KeyDown += (s, e) => { if (e.Key == Key.Enter) { dlg.Tag = pwdBox.Password; dlg.DialogResult = true; } };
+
+                if (dlg.ShowDialog() != true) return;
+                if ((string)dlg.Tag != TURBO_PASSWORD) { ShowError("Incorrect password."); return; }
+                IsTurboMode = true;
+                AiStatus = "TURBO MODE activated — $5 daily limit";
+                SetStatus("Turbo Mode ON", "#F9E2AF");
+            }
+            else
+            {
+                IsTurboMode = false;
+                AiStatus = "Turbo Mode deactivated — $1 daily limit";
+                SetStatus("Turbo Mode OFF", "#6C7086");
+            }
+            _settings.IsTurboMode = _isTurboMode;
+            _settings.Save(DevKitApp.ScriptsFolderPath);
+        }
+
+        private bool CheckDailyLimit()
+        {
+            if (_totalCost >= DailyLimit)
+            {
+                ShowError($"Daily limit reached (${DailyLimit:F2}). " + (_isTurboMode ? "Limit maxed out." : "Enable Turbo Mode to increase to $5."));
+                SetStatus("Daily limit reached.", "#F38BA8");
+                return false;
+            }
+            return true;
+        }
+
+        // ── Complexity Pre-Check ──
+        private static readonly string CDT_MESSAGE =
+            "This request involves advanced Revit API patterns that go beyond simple scripting.\n\n" +
+            "Please contact the Computational Design Team (CDT) for assistance.\n" +
+            "They can build robust, production-ready tools for complex workflows.";
+
+        private static readonly (string pattern, string reason)[] ComplexityPatterns =
+        {
+            // Geometry intersections between categories
+            (@"\b(intersect|intersection|clash|collision|overlap)\b", "geometry intersection / clash detection"),
+            (@"\b(solid.*intersect|BooleanOperation|ElementIntersects|ray\s*cast|ReferenceIntersector)\b", "solid geometry operations"),
+
+            // Opening / penetration creation from intersections
+            (@"\b(opening|penetration|sleeve|cutout)\b.*\b(wall|floor|slab|ceiling)\b", "opening/penetration creation"),
+            (@"\b(wall|floor|slab|ceiling)\b.*\b(opening|penetration|sleeve|cutout)\b", "opening/penetration creation"),
+
+            // Multi-document / linked models
+            (@"\b(link|linked\s*model|RevitLinkInstance|RevitLinkType|GetLinkDocument)\b", "linked model operations"),
+            (@"\b(multi.?doc|cross.?doc|multiple\s*documents?)\b", "multi-document operations"),
+
+            // External events / modeless patterns
+            (@"\b(ExternalEvent|IExternalEventHandler|modeless|DockablePane|IDockablePaneProvider)\b", "modeless / external event patterns"),
+            (@"\b(Idling\s*Event|Application\.Idling|RegisterIdlingHandler)\b", "idling event handlers"),
+
+            // IUpdater / DMU
+            (@"\b(IUpdater|UpdaterRegistry|DMU|DocumentChanged)\b", "dynamic model update (DMU) patterns"),
+
+            // External APIs / web / database
+            (@"\b(http|web\s*request|rest\s*api|soap|websocket|database|sql|mongo|firebase)\b", "external API / database access"),
+            (@"\b(HttpClient|WebClient|RestSharp|HttpWebRequest)\b", "web request operations"),
+
+            // Complex file operations
+            (@"\b(excel|spreadsheet|csv\s*export|xlsx|ClosedXML|NPOI|EPPlus)\b", "Excel / spreadsheet operations"),
+            (@"\b(pdf|iTextSharp|PdfSharp)\b", "PDF generation"),
+
+            // Batch processing across many categories
+            (@"\b(batch|all\s*elements?\s*in\s*model|entire\s*model|every\s*(element|instance|family))\b", "model-wide batch processing"),
+
+            // Complex UI beyond TaskDialog
+            (@"\b(WPF\s*window|UserControl|dockable|ribbon\s*panel|custom\s*UI|modeless\s*dialog)\b", "custom UI / WPF window creation"),
+            (@"\b(DataGrid|TreeView|ListView|TabControl|MVVM)\b", "complex UI components"),
+
+            // Scheduling / automation
+            (@"\b(schedule|automat|timer|recurring|background\s*task)\b", "scheduled / automated tasks"),
+
+            // Advanced structural / analytical
+            (@"\b(AnalyticalModel|structural\s*analysis|FEA|finite\s*element)\b", "structural analysis operations"),
+
+            // Phasing / worksharing
+            (@"\b(workshar|central\s*model|synchroniz|borrow|workset)\b", "worksharing operations"),
+            (@"\b(phase\s*map|phase\s*filter|demolish|new\s*construction)\b", "phasing operations"),
+
+            // Complex geometry creation
+            (@"\b(loft|sweep|blend|revolution|extrusion.*profile|DirectShape.*complex|TessellatedShape)\b", "complex geometry creation"),
+            (@"\b(adaptive\s*component|conceptual\s*mass|divided\s*surface)\b", "adaptive / conceptual mass operations"),
+
+            // MEP-specific complex operations
+            (@"\b(MEP.*intersect|pipe.*wall|duct.*wall|conduit.*wall|cable\s*tray.*wall)\b", "MEP intersection operations"),
+            (@"\b(routing|auto.?route|connect.*system|mechanical\s*system|piping\s*system)\b", "MEP routing / system operations"),
+        };
+
+        private string CheckComplexity(string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt)) return null;
+            string lower = prompt.ToLowerInvariant();
+
+            foreach (var (pattern, reason) in ComplexityPatterns)
+            {
+                if (Regex.IsMatch(lower, pattern, RegexOptions.IgnoreCase))
+                    return reason;
+            }
+            return null;
         }
 
         // ── Helpers ──
@@ -384,6 +549,9 @@ namespace DevKit.ViewModels
             else if (modelId.Contains("opus")) { inputRate = 15.0; outputRate = 75.0; }
 
             TotalCost += (inputTokens * inputRate / 1_000_000) + (outputTokens * outputRate / 1_000_000);
+            _settings.DailyCost = _totalCost;
+            _settings.DailyCostDate = DateTime.Now.ToString("yyyy-MM-dd");
+            _settings.Save(DevKitApp.ScriptsFolderPath);
         }
     }
 }

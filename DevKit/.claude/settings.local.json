@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/Dar Projects/C#/DevKit/**)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet add:*)"
+    ]
+  }
+}

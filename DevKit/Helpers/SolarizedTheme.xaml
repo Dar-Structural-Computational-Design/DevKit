@@ -2,29 +2,29 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:vm="clr-namespace:DevKit.ViewModels">
 
-    <!-- ── Theme Colors ── -->
-    <SolidColorBrush x:Key="BgDeep" Color="#1E1E2E"/>
-    <SolidColorBrush x:Key="BgSurface" Color="#181825"/>
-    <SolidColorBrush x:Key="BgCard" Color="#313244"/>
-    <SolidColorBrush x:Key="BgElevated" Color="#252536"/>
-    <SolidColorBrush x:Key="BgInput" Color="#141422"/>
-    <SolidColorBrush x:Key="Border" Color="#45475A"/>
-    <SolidColorBrush x:Key="BorderFocus" Color="#7AA2F7"/>
-    <SolidColorBrush x:Key="TextPrimary" Color="#CDD6F4"/>
-    <SolidColorBrush x:Key="TextSecondary" Color="#A6ADC8"/>
-    <SolidColorBrush x:Key="TextMuted" Color="#6C7086"/>
-    <SolidColorBrush x:Key="TextDim" Color="#585B70"/>
-    <SolidColorBrush x:Key="Accent" Color="#7AA2F7"/>
-    <SolidColorBrush x:Key="AccentGreen" Color="#A6E3A1"/>
-    <SolidColorBrush x:Key="AccentRed" Color="#F38BA8"/>
-    <SolidColorBrush x:Key="AccentYellow" Color="#F9E2AF"/>
-    <SolidColorBrush x:Key="AccentPurple" Color="#CBA6F7"/>
-    <SolidColorBrush x:Key="AccentTeal" Color="#94E2D5"/>
-    <SolidColorBrush x:Key="ChatUser" Color="#1a1a35"/>
-    <SolidColorBrush x:Key="ChatAi" Color="#15152A"/>
-    <SolidColorBrush x:Key="LineGutter" Color="#141422"/>
-    <SolidColorBrush x:Key="Caret" Color="#F5E0DC"/>
-    <SolidColorBrush x:Key="Splitter" Color="#45475A"/>
+    <!-- ── Theme Colors (Solarized Dark) ── -->
+    <SolidColorBrush x:Key="BgDeep" Color="#002B36"/>
+    <SolidColorBrush x:Key="BgSurface" Color="#073642"/>
+    <SolidColorBrush x:Key="BgCard" Color="#0A4050"/>
+    <SolidColorBrush x:Key="BgElevated" Color="#063845"/>
+    <SolidColorBrush x:Key="BgInput" Color="#002028"/>
+    <SolidColorBrush x:Key="Border" Color="#2A5460"/>
+    <SolidColorBrush x:Key="BorderFocus" Color="#268BD2"/>
+    <SolidColorBrush x:Key="TextPrimary" Color="#93A1A1"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#839496"/>
+    <SolidColorBrush x:Key="TextMuted" Color="#657B83"/>
+    <SolidColorBrush x:Key="TextDim" Color="#586E75"/>
+    <SolidColorBrush x:Key="Accent" Color="#268BD2"/>
+    <SolidColorBrush x:Key="AccentGreen" Color="#859900"/>
+    <SolidColorBrush x:Key="AccentRed" Color="#DC322F"/>
+    <SolidColorBrush x:Key="AccentYellow" Color="#B58900"/>
+    <SolidColorBrush x:Key="AccentPurple" Color="#6C71C4"/>
+    <SolidColorBrush x:Key="AccentTeal" Color="#2AA198"/>
+    <SolidColorBrush x:Key="ChatUser" Color="#073642"/>
+    <SolidColorBrush x:Key="ChatAi" Color="#002B36"/>
+    <SolidColorBrush x:Key="LineGutter" Color="#002028"/>
+    <SolidColorBrush x:Key="Caret" Color="#93A1A1"/>
+    <SolidColorBrush x:Key="Splitter" Color="#2A5460"/>
 
     <!-- ── TextBox ── -->
     <Style x:Key="DarkTB" TargetType="TextBox">

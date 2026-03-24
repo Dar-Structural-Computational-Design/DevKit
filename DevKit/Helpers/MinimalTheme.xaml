@@ -3,28 +3,28 @@
                     xmlns:vm="clr-namespace:DevKit.ViewModels">
 
     <!-- ── Theme Colors ── -->
-    <SolidColorBrush x:Key="BgDeep" Color="#1E1E2E"/>
-    <SolidColorBrush x:Key="BgSurface" Color="#181825"/>
-    <SolidColorBrush x:Key="BgCard" Color="#313244"/>
-    <SolidColorBrush x:Key="BgElevated" Color="#252536"/>
-    <SolidColorBrush x:Key="BgInput" Color="#141422"/>
-    <SolidColorBrush x:Key="Border" Color="#45475A"/>
-    <SolidColorBrush x:Key="BorderFocus" Color="#7AA2F7"/>
-    <SolidColorBrush x:Key="TextPrimary" Color="#CDD6F4"/>
-    <SolidColorBrush x:Key="TextSecondary" Color="#A6ADC8"/>
-    <SolidColorBrush x:Key="TextMuted" Color="#6C7086"/>
-    <SolidColorBrush x:Key="TextDim" Color="#585B70"/>
-    <SolidColorBrush x:Key="Accent" Color="#7AA2F7"/>
-    <SolidColorBrush x:Key="AccentGreen" Color="#A6E3A1"/>
-    <SolidColorBrush x:Key="AccentRed" Color="#F38BA8"/>
-    <SolidColorBrush x:Key="AccentYellow" Color="#F9E2AF"/>
-    <SolidColorBrush x:Key="AccentPurple" Color="#CBA6F7"/>
-    <SolidColorBrush x:Key="AccentTeal" Color="#94E2D5"/>
-    <SolidColorBrush x:Key="ChatUser" Color="#1a1a35"/>
-    <SolidColorBrush x:Key="ChatAi" Color="#15152A"/>
-    <SolidColorBrush x:Key="LineGutter" Color="#141422"/>
-    <SolidColorBrush x:Key="Caret" Color="#F5E0DC"/>
-    <SolidColorBrush x:Key="Splitter" Color="#45475A"/>
+    <SolidColorBrush x:Key="BgDeep" Color="#F8F8FA"/>
+    <SolidColorBrush x:Key="BgSurface" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="BgCard" Color="#F0F0F3"/>
+    <SolidColorBrush x:Key="BgElevated" Color="#F4F4F7"/>
+    <SolidColorBrush x:Key="BgInput" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Border" Color="#E2E2E8"/>
+    <SolidColorBrush x:Key="BorderFocus" Color="#6B7B8D"/>
+    <SolidColorBrush x:Key="TextPrimary" Color="#2C2C34"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#5A5A68"/>
+    <SolidColorBrush x:Key="TextMuted" Color="#8C8C9A"/>
+    <SolidColorBrush x:Key="TextDim" Color="#B0B0BC"/>
+    <SolidColorBrush x:Key="Accent" Color="#5B6770"/>
+    <SolidColorBrush x:Key="AccentGreen" Color="#4A8C5C"/>
+    <SolidColorBrush x:Key="AccentRed" Color="#A04050"/>
+    <SolidColorBrush x:Key="AccentYellow" Color="#8C7A3C"/>
+    <SolidColorBrush x:Key="AccentPurple" Color="#7A6A8C"/>
+    <SolidColorBrush x:Key="AccentTeal" Color="#4A7C78"/>
+    <SolidColorBrush x:Key="ChatUser" Color="#F4F4F7"/>
+    <SolidColorBrush x:Key="ChatAi" Color="#FAFAFA"/>
+    <SolidColorBrush x:Key="LineGutter" Color="#F4F4F7"/>
+    <SolidColorBrush x:Key="Caret" Color="#2C2C34"/>
+    <SolidColorBrush x:Key="Splitter" Color="#E2E2E8"/>
 
     <!-- ── TextBox ── -->
     <Style x:Key="DarkTB" TargetType="TextBox">
@@ -67,7 +67,7 @@
                         </ToggleButton>
                         <ContentPresenter IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" HorizontalAlignment="Left"/>
                         <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" PopupAnimation="Slide">
-                            <Border Background="{DynamicResource BgDeep}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="0" Margin="0,4,0,0" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="300" Padding="4">
+                            <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="0" Margin="0,4,0,0" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="300" Padding="4">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel IsItemsHost="True"/></ScrollViewer>
                             </Border>
                         </Popup>

@@ -8,6 +8,9 @@ namespace DevKit.Models
     {
         [JsonProperty("claudeApiKey")] public string ClaudeApiKey { get; set; } = "";
         [JsonProperty("claudeModel")] public string ClaudeModel { get; set; } = "claude-sonnet-4-20250514";
+        [JsonProperty("dailyCost")] public double DailyCost { get; set; }
+        [JsonProperty("dailyCostDate")] public string DailyCostDate { get; set; } = "";
+        [JsonProperty("isTurboMode")] public bool IsTurboMode { get; set; }
         private const string FILE = "devkit_settings.json";
 
         public static UserSettings Load(string folder)
