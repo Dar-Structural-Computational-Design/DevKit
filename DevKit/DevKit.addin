@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>DevKit</Name>
+    <Assembly>.\DevKit\DevKit.dll</Assembly>
+    <FullClassName>DevKit.DevKitApp</FullClassName>
+    <AddInId>193B91BC-CD64-423D-B7EE-ECD29164E62E</AddInId>
+    <VendorId>DevKit</VendorId>
+    <VendorDescription>DevKit — Revit Development Toolkit</VendorDescription>
+  </AddIn>
+</RevitAddIns>

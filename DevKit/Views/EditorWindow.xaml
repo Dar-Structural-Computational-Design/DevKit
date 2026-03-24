@@ -1,0 +1,267 @@
+<Window x:Class="DevKit.Views.EditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:DevKit.ViewModels"
+        xmlns:views="clr-namespace:DevKit.Views"
+        Title="DevKit — Revit Development Toolkit"
+        Width="1020" Height="800" MinWidth="800" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgDeep}" Foreground="{DynamicResource TextPrimary}" FontFamily="Segoe UI"
+        KeyDown="Window_KeyDown" Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <vm:StringToBrushConverter x:Key="StrBrush"/>
+            <BooleanToVisibilityConverter x:Key="BoolVis"/>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/DevKit;component/Helpers/DarkTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="150"/>
+        </Grid.RowDefinitions>
+
+        <!-- HEADER -->
+        <Grid Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="⚙ DEVKIT" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource Accent}" Margin="0,0,0,2"/>
+                <TextBlock FontSize="11" Foreground="{DynamicResource TextMuted}">
+                    <Run>Revit Development Toolkit</Run>
+                    <Run Foreground="{DynamicResource TextDim}"> | </Run><Run>F5 = Test</Run>
+                    <Run Foreground="{DynamicResource TextDim}"> | </Run><Run>Ctrl+S = Add</Run>
+                </TextBlock>
+            </StackPanel>
+            <ComboBox Grid.Column="1" Width="200" 
+                      Margin="0,0,8,0" ItemsSource="{Binding Snippets}" 
+                      SelectedItem="{Binding SelectedSnippet}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Name}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <!-- Theme Toggle -->
+            <Button Grid.Column="2" Style="{DynamicResource BtnSm}" Background="{DynamicResource BgCard}" Foreground="{DynamicResource TextPrimary}"
+                    Content="{Binding ThemeIcon}" FontSize="16" ToolTip="Toggle light/dark theme" Click="BtnToggleTheme_Click"/>
+        </Grid>
+
+        <!-- TABS -->
+        <TabControl Grid.Row="1" Background="Transparent" BorderBrush="{DynamicResource Border}" SelectedIndex="{Binding SelectedTabIndex}" Margin="0,0,0,8">
+
+            <!-- TAB 1: Code Editor -->
+            <TabItem Header="  Code Editor  ">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+
+                    <Border Background="{DynamicResource BgCard}" CornerRadius="6" Padding="12,8" Margin="0,0,0,8">
+                        <TextBlock FontFamily="Cascadia Code, Consolas" FontSize="11.5" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap">
+                            <Run Foreground="{DynamicResource Accent}" FontWeight="SemiBold">Available: </Run>
+                            <Run Foreground="{DynamicResource AccentYellow}">UIApplication</Run><Run> uiApp · </Run>
+                            <Run Foreground="{DynamicResource AccentYellow}">UIDocument</Run><Run> uiDoc · </Run>
+                            <Run Foreground="{DynamicResource AccentYellow}">Document</Run><Run> doc</Run>
+                            <Run Foreground="{DynamicResource TextDim}"> | Body only — usings extracted automatically</Run>
+                        </TextBlock>
+                    </Border>
+
+                    <Border Grid.Row="1" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="4" Margin="0,0,0,8" ClipToBounds="True">
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <views:LineNumberMargin x:Name="lineNumbers" TargetTextBox="{Binding ElementName=txtCode}" VerticalAlignment="Stretch"/>
+                            <TextBox x:Name="txtCode" Grid.Column="1" Text="{Binding Code, UpdateSourceTrigger=PropertyChanged}"
+                                     AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SpellCheck.IsEnabled="False"
+                                     Background="Transparent" Foreground="{DynamicResource TextPrimary}" CaretBrush="{DynamicResource Caret}" BorderThickness="0"
+                                     FontFamily="Cascadia Code, Consolas, Courier New" FontSize="13.5" Padding="8,6"/>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="2" Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Name:" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBox Grid.Column="1" Style="{DynamicResource DarkTB}" FontFamily="Segoe UI" Text="{Binding ButtonName, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="Group:" VerticalAlignment="Center" Margin="12,0,8,0" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+                        <ComboBox Grid.Column="3" Width="140" ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}"/>
+                    </Grid>
+
+                    <Grid Grid.Row="3">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <Button Grid.Column="1" Style="{DynamicResource Btn}" Background="{DynamicResource AccentGreen}" Foreground="#1E1E2E" Content="▶ Test (F5)" Margin="0,0,8,0" Command="{Binding TestCommand}" IsEnabled="{Binding ButtonsEnabled}"/>
+                        <Button Grid.Column="2" Style="{DynamicResource Btn}" Background="{DynamicResource Accent}" Foreground="#FFFFFF" Content="＋ Add (Ctrl+S)" Margin="0,0,8,0" Command="{Binding AddCommand}" IsEnabled="{Binding ButtonsEnabled}"/>
+                        <Button Grid.Column="3" Style="{DynamicResource Btn}" Background="{DynamicResource BgCard}" Foreground="{DynamicResource TextPrimary}" Content="Clear" Command="{Binding ClearCommand}"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 2: Saved Scripts -->
+            <TabItem Header="  Saved Scripts  ">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Background="{DynamicResource BgCard}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Groups:" Foreground="{DynamicResource TextSecondary}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ListBox Grid.Column="1" ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
+                                <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Margin" Value="0,0,6,0"/><Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="bd" Background="{DynamicResource Border}" CornerRadius="4" Padding="8,3" Cursor="Hand"><ContentPresenter/></Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="bd" Property="Background" Value="{DynamicResource Accent}"/></Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="bd" Property="Background" Value="{DynamicResource TextDim}"/></Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource TextPrimary}"/></DataTemplate></ListBox.ItemTemplate>
+                            </ListBox>
+                            <Button Grid.Column="2" Style="{DynamicResource BtnSm}" Background="{DynamicResource AccentGreen}" Foreground="#1E1E2E" Content="＋ New" Command="{Binding CreateGroupCommand}" Margin="4,0,0,0"/>
+                            <Button Grid.Column="3" Style="{DynamicResource BtnSm}" Background="{DynamicResource AccentRed}" Foreground="#FFF" Content="Delete" Command="{Binding DeleteGroupCommand}" Margin="4,0,0,0"/>
+                            <Button Grid.Column="4" Style="{DynamicResource BtnSm}" Background="{DynamicResource BgCard}" Foreground="{DynamicResource TextPrimary}" Content="Refresh" Command="{Binding RefreshScriptsCommand}" Margin="4,0,0,0"/>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Grid.Row="1" FontSize="12" Foreground="{DynamicResource TextMuted}" Margin="0,0,0,6">Select a script to load, move, export, or delete.</TextBlock>
+
+                    <ListBox Grid.Row="2" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Border}" ItemsSource="{Binding SavedScripts}" SelectedItem="{Binding SelectedScript}" Margin="0,0,0,8">
+                        <ListBox.ItemTemplate><DataTemplate><Grid Margin="4,6"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel><TextBlock Text="{Binding ButtonName}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                                <StackPanel Orientation="Horizontal"><TextBlock Text="{Binding DllFileName}" FontSize="11" Foreground="{DynamicResource TextMuted}" Margin="0,2,12,0"/><TextBlock Text="{Binding CreatedAt}" FontSize="11" Foreground="{DynamicResource TextDim}" Margin="0,2,0,0"/></StackPanel></StackPanel>
+                            <Border Grid.Column="1" Background="{DynamicResource BgCard}" CornerRadius="4" Padding="8,4" VerticalAlignment="Center"><TextBlock Text="{Binding Group}" FontSize="11" Foreground="{DynamicResource Accent}"/></Border>
+                        </Grid></DataTemplate></ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <Border Grid.Row="3" Background="{DynamicResource BgElevated}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Move to:" Foreground="{DynamicResource TextSecondary}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding Groups}" SelectedItem="{Binding MoveToGroup}"/>
+                            <Button Grid.Column="2" Style="{DynamicResource BtnSm}" Margin="8,0,0,0" Background="{DynamicResource AccentYellow}" Foreground="#1E1E2E" Content="↻ Move" Command="{Binding MoveScriptCommand}"/>
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Row="4" Orientation="Horizontal">
+                        <Button Style="{DynamicResource BtnSm}" Background="{DynamicResource Accent}" Foreground="#FFF" Content="Load" Command="{Binding LoadScriptCommand}" Margin="0,0,8,0"/>
+                        <Button Style="{DynamicResource BtnSm}" Background="{DynamicResource AccentRed}" Foreground="#FFF" Content="Delete" Command="{Binding DeleteScriptCommand}" Margin="0,0,8,0"/>
+                        <Button Style="{DynamicResource BtnSm}" Background="{DynamicResource AccentTeal}" Foreground="#1E1E2E" Content="📤 Export" Command="{Binding ExportScriptCommand}" Margin="0,0,8,0"/>
+                        <Button Style="{DynamicResource BtnSm}" Background="{DynamicResource AccentYellow}" Foreground="#1E1E2E" Content="📥 Import" Command="{Binding ImportPackageCommand}"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 3: AI Assistant -->
+            <TabItem Header="  🤖 AI Assistant  ">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Background="{DynamicResource BgCard}" CornerRadius="6" Padding="12,10" Margin="0,0,0,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="LLM:" Foreground="{DynamicResource TextSecondary}" FontSize="13" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding LlmProviders}" SelectedItem="{Binding SelectedProvider}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DisplayName}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Button Grid.Column="2" Style="{DynamicResource BtnSm}" Margin="8,0,0,0" Background="{DynamicResource BgCard}" Foreground="{DynamicResource TextPrimary}" Content="🔄" Command="{Binding RefreshLlmCommand}"/>
+                            <Button Grid.Column="3" Style="{DynamicResource BtnSm}" Margin="8,0,0,0" Background="{DynamicResource BgCard}" Foreground="{DynamicResource TextPrimary}" Content="🗑" Command="{Binding AiClearChatCommand}"/>
+                            <TextBlock Grid.Column="4" Text="{Binding TotalCostDisplay}" 
+                                     Foreground="{DynamicResource AccentYellow}" FontSize="12" FontWeight="SemiBold"
+                                     VerticalAlignment="Center" Margin="12,0,0,0"
+                                     ToolTip="Total Claude API cost this session"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="1" Background="{DynamicResource BgElevated}" CornerRadius="6" Padding="12,8" Margin="0,0,0,6" Visibility="{Binding IsClaudeSelected, Converter={StaticResource BoolVis}}">
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Foreground="{DynamicResource AccentPurple}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0">☁ API Key:</TextBlock>
+                            <PasswordBox x:Name="pwdApiKey" Grid.Column="1" Background="{DynamicResource BgSurface}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource Border}" Padding="8,6" FontSize="12" PasswordChar="●" BorderThickness="1"/>
+                            <Button Grid.Column="2" Style="{DynamicResource BtnSm}" Margin="8,0,0,0" Background="{DynamicResource AccentGreen}" Foreground="#1E1E2E" Content="💾 Save" Click="BtnSaveApiKey_Click"/>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Grid.Row="2" Text="{Binding AiStatus}" FontSize="11.5" Foreground="{DynamicResource TextMuted}" Margin="4,0,0,6"/>
+
+                    <Border Grid.Row="3" Background="{DynamicResource BgInput}" CornerRadius="8" BorderBrush="{DynamicResource Border}" BorderThickness="1" Margin="0,0,0,8">
+                        <ListBox x:Name="lstChat" ItemsSource="{Binding ChatHistory}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Focusable" Value="False"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0"/>
+                                <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter/></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate><DataTemplate>
+                                <Border Padding="12,8" Margin="0,0,0,1">
+                                    <Border.Style><Style TargetType="Border"><Setter Property="Background" Value="{DynamicResource ChatAi}"/>
+                                        <Style.Triggers><DataTrigger Binding="{Binding IsUser}" Value="True"><Setter Property="Background" Value="{DynamicResource ChatUser}"/></DataTrigger></Style.Triggers></Style></Border.Style>
+                                    <StackPanel>
+                                        <TextBlock FontSize="10" FontWeight="Bold" Margin="0,0,0,4">
+                                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource AccentGreen}"/>
+                                                <Style.Triggers><DataTrigger Binding="{Binding IsUser}" Value="True"><Setter Property="Foreground" Value="{DynamicResource Accent}"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                            <Run Text="{Binding DisplayLabel, Mode=OneWay}"/></TextBlock>
+                                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontFamily="Cascadia Code, Consolas, Courier New" FontSize="11.5" Foreground="{DynamicResource TextSecondary}" MaxHeight="200"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate></ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+
+                    <TextBox Grid.Row="4" Style="{DynamicResource DarkTB}" Text="{Binding AiPrompt, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" Height="80" VerticalScrollBarVisibility="Auto" FontFamily="Segoe UI" FontSize="13" Margin="0,0,0,8"/>
+
+                    <Grid Grid.Row="5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Style="{DynamicResource Btn}" Background="{DynamicResource AccentRed}" Foreground="#FFF" Content="🔧 Send Error" Command="{Binding AiSendErrorCommand}" Visibility="{Binding HasError, Converter={StaticResource BoolVis}}"/>
+                        <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextDim}" Margin="12,0,0,0">Chat naturally — AI codes only when ready</TextBlock>
+                        <Button Grid.Column="2" Style="{DynamicResource Btn}" Background="{DynamicResource AccentPurple}" Foreground="#FFF" Content="🤖 Send" FontSize="13" Command="{Binding AiGenerateCommand}"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- STATUS -->
+        <Border Grid.Row="2" Background="{DynamicResource BgCard}" CornerRadius="4" Padding="10,6" Margin="0,0,0,4">
+            <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="{Binding StatusColor, Converter={StaticResource StrBrush}}"/>
+        </Border>
+
+        <GridSplitter Grid.Row="3" Height="4" HorizontalAlignment="Stretch" Background="{DynamicResource Splitter}" Margin="0,2"/>
+
+        <!-- OUTPUT -->
+        <Border Grid.Row="4" Background="{DynamicResource BgInput}" CornerRadius="6" Padding="2">
+            <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <TextBlock Text="OUTPUT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextDim}" Margin="10,6,0,4"/>
+                <TextBox Grid.Row="1" Background="Transparent" BorderThickness="0" FontFamily="Cascadia Code, Consolas, Courier New" FontSize="12" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Padding="10,4" Text="{Binding OutputText, Mode=OneWay}">
+                    <TextBox.Style><Style TargetType="TextBox"><Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+                        <Style.Triggers><DataTrigger Binding="{Binding IsOutputError}" Value="True"><Setter Property="Foreground" Value="{DynamicResource AccentRed}"/></DataTrigger></Style.Triggers></Style></TextBox.Style>
+                </TextBox>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
