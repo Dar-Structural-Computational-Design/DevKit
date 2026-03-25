@@ -41,6 +41,7 @@ namespace DevKit.ViewModels
         private const double DAILY_LIMIT_NORMAL = 1.0;
         private const double DAILY_LIMIT_TURBO = 5.0;
         private const string TURBO_PASSWORD = "devkit2026";
+        private string _manualPrompt = "", _generatedPrompt = "";
 
         public string Code { get => _code; set => SetProperty(ref _code, value); }
         public string ButtonName { get => _buttonName; set => SetProperty(ref _buttonName, value); }
@@ -58,6 +59,8 @@ namespace DevKit.ViewModels
         public string ClaudeApiKey { get => _claudeApiKey; set => SetProperty(ref _claudeApiKey, value); }
         public string SelectedGroup { get => _selectedGroup; set => SetProperty(ref _selectedGroup, value); }
         public string MoveToGroup { get => _moveToGroup; set => SetProperty(ref _moveToGroup, value); }
+        public string ManualPrompt { get => _manualPrompt; set => SetProperty(ref _manualPrompt, value); }
+        public string GeneratedPrompt { get => _generatedPrompt; set => SetProperty(ref _generatedPrompt, value); }
         public bool IsClaudeSelected => _selectedProvider?.Type == LlmType.ClaudeApi;
         public List<ThemeInfo> AvailableThemes { get; } = ThemeManager.GetAllThemes();
         public ThemeInfo SelectedTheme
@@ -110,6 +113,9 @@ namespace DevKit.ViewModels
         public ICommand ExportScriptCommand { get; }
         public ICommand ImportPackageCommand { get; }
         public ICommand ToggleTurboCommand { get; }
+        public ICommand GenerateManualPromptCommand { get; }
+        public ICommand CopyManualPromptCommand { get; }
+        public ICommand PasteCodeFromClipboardCommand { get; }
 
         public EditorViewModel()
         {
@@ -137,6 +143,9 @@ namespace DevKit.ViewModels
             ExportScriptCommand = new RelayCommand(ExecuteExportScript);
             ImportPackageCommand = new RelayCommand(ExecuteImportPackage);
             ToggleTurboCommand = new RelayCommand(ExecuteToggleTurbo);
+            GenerateManualPromptCommand = new RelayCommand(ExecuteGenerateManualPrompt);
+            CopyManualPromptCommand = new RelayCommand(ExecuteCopyManualPrompt);
+            PasteCodeFromClipboardCommand = new RelayCommand(ExecutePasteCodeFromClipboard);
 
             // Load daily cost — reset if it's a new day
             string today = DateTime.Now.ToString("yyyy-MM-dd");
@@ -412,6 +421,50 @@ namespace DevKit.ViewModels
             }
             catch (Exception ex) { ShowError($"AI error:\n{ex.Message}"); AiStatus = $"Error: {ex.Message}"; }
             finally { IsAiGenerating = false; ButtonsEnabled = true; }
+        }
+
+        // ── Manual Assistant ──
+        private void ExecuteGenerateManualPrompt()
+        {
+            string prompt = ManualPrompt?.Trim();
+            if (string.IsNullOrEmpty(prompt)) { ShowError("Enter a prompt first."); return; }
+
+            string complexReason = CheckComplexity(prompt);
+            if (complexReason != null)
+            {
+                GeneratedPrompt = $"BLOCKED: {complexReason}\n\n{CDT_MESSAGE}";
+                SetStatus("Complex request — contact CDT.", "#F9E2AF");
+                return;
+            }
+
+            GeneratedPrompt = LocalLlmService.SYSTEM_PROMPT + "\n\n---\n\nUser Request:\n" + prompt;
+            ManualPrompt = "";
+            SetStatus("Prompt generated — copy and paste into any AI.", "#A6E3A1");
+        }
+
+        private void ExecuteCopyManualPrompt()
+        {
+            if (string.IsNullOrWhiteSpace(GeneratedPrompt)) { ShowError("Generate a prompt first."); return; }
+            Clipboard.SetText(GeneratedPrompt);
+            SetStatus("Prompt copied to clipboard!", "#A6E3A1");
+        }
+
+        private void ExecutePasteCodeFromClipboard()
+        {
+            string text = Clipboard.GetText()?.Trim();
+            if (string.IsNullOrEmpty(text)) { ShowError("Clipboard is empty."); return; }
+
+            // Strip markdown fences if present
+            if (text.StartsWith("```"))
+            {
+                int firstNewline = text.IndexOf('\n');
+                if (firstNewline > 0) text = text.Substring(firstNewline + 1);
+                if (text.EndsWith("```")) text = text.Substring(0, text.Length - 3).TrimEnd();
+            }
+
+            Code = text;
+            SelectedTabIndex = 0;
+            SetStatus("Code pasted from clipboard — test with F5.", "#A6E3A1");
         }
 
         // ── Turbo Mode ──

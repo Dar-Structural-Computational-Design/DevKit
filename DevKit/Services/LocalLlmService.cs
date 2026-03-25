@@ -22,7 +22,7 @@ namespace DevKit.Services
             ("LocalAI",   "http://localhost:8080",  LlmType.OpenAiCompatible),
         };
 
-        private const string SYSTEM_PROMPT = @"You are a helpful Revit development assistant inside a tool called DevKit.
+        public const string SYSTEM_PROMPT = @"You are a helpful Revit development assistant inside a tool called DevKit.
 You can have normal conversations, answer questions, discuss Revit API concepts, and help plan solutions.
 
 When the user asks you to WRITE or GENERATE code, follow these rules for the code output:

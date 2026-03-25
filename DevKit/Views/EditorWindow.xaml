@@ -268,6 +268,44 @@
                     </Grid>
                 </Grid>
             </TabItem>
+
+            <!-- TAB 4: Manual Assistant -->
+            <TabItem Header="  Manual Assistant  ">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Background="{DynamicResource BgCard}" Padding="12,8" Margin="0,0,0,8">
+                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextSecondary}">
+                            <Run FontWeight="SemiBold" Foreground="{DynamicResource Accent}">Free AI Mode:</Run>
+                            <Run> Type your request below and click Generate. Copy the generated prompt into any AI (ChatGPT, Claude, Gemini, etc.), then paste the AI's code response back here.</Run>
+                        </TextBlock>
+                    </Border>
+
+                    <TextBox Grid.Row="1" Style="{DynamicResource DarkTB}" Text="{Binding ManualPrompt, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True" TextWrapping="Wrap" Height="80" VerticalScrollBarVisibility="Auto"
+                             FontFamily="Segoe UI" FontSize="13" Margin="0,0,0,8"/>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Style="{DynamicResource Btn}" Background="{DynamicResource AccentPurple}" Foreground="#FFF"
+                                Content="Generate Manual Prompt" FontSize="12" Command="{Binding GenerateManualPromptCommand}" Margin="0,0,6,0"/>
+                        <Button Style="{DynamicResource Btn}" Background="{DynamicResource AccentGreen}" Foreground="#FFF"
+                                Content="Copy Prompt" FontSize="12" Command="{Binding CopyManualPromptCommand}" Margin="0,0,6,0"/>
+                        <Button Style="{DynamicResource Btn}" Background="{DynamicResource Accent}" Foreground="#FFF"
+                                Content="Paste Code from Clipboard" FontSize="12" Command="{Binding PasteCodeFromClipboardCommand}"/>
+                    </StackPanel>
+
+                    <TextBox Grid.Row="3" Text="{Binding GeneratedPrompt, Mode=OneWay}" IsReadOnly="True"
+                             TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                             FontFamily="Cascadia Code, Consolas, Courier New" FontSize="11.5"
+                             Background="{DynamicResource BgInput}" Foreground="{DynamicResource TextSecondary}"
+                             BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="10,8" Cursor="IBeam"/>
+                </Grid>
+            </TabItem>
         </TabControl>
 
         <!-- STATUS -->
