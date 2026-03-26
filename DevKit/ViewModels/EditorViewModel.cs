@@ -531,7 +531,7 @@ namespace DevKit.ViewModels
             (@"\b(wall|floor|slab|ceiling)\b.*\b(opening|penetration|sleeve|cutout)\b", "opening/penetration creation"),
 
             // Multi-document / linked models
-            (@"\b(link|linked\s*model|RevitLinkInstance|RevitLinkType|GetLinkDocument)\b", "linked model operations"),
+            (@"\b(linked\s*model|RevitLinkInstance|RevitLinkType|GetLinkDocument)\b", "linked model operations"),
             (@"\b(multi.?doc|cross.?doc|multiple\s*documents?)\b", "multi-document operations"),
 
             // External events / modeless patterns
@@ -542,22 +542,22 @@ namespace DevKit.ViewModels
             (@"\b(IUpdater|UpdaterRegistry|DMU|DocumentChanged)\b", "dynamic model update (DMU) patterns"),
 
             // External APIs / web / database
-            (@"\b(http|web\s*request|rest\s*api|soap|websocket|database|sql|mongo|firebase)\b", "external API / database access"),
+            (@"\b(web\s*request|rest\s*api|soap|websocket|database|sql|mongo|firebase)\b", "external API / database access"),
             (@"\b(HttpClient|WebClient|RestSharp|HttpWebRequest)\b", "web request operations"),
 
             // Complex file operations
             (@"\b(excel|spreadsheet|csv\s*export|xlsx|ClosedXML|NPOI|EPPlus)\b", "Excel / spreadsheet operations"),
-            (@"\b(pdf|iTextSharp|PdfSharp)\b", "PDF generation"),
+            (@"\b(export.*pdf|create.*pdf|generate.*pdf|pdf.*export|iTextSharp|PdfSharp)\b", "PDF generation"),
 
             // Batch processing across many categories
-            (@"\b(batch|all\s*elements?\s*in\s*model|entire\s*model|every\s*(element|instance|family))\b", "model-wide batch processing"),
+            (@"\b(entire\s*model|every\s*(element|instance|family)\s*in\s*(the\s*)?project)\b", "model-wide batch processing"),
 
             // Complex UI beyond TaskDialog
             (@"\b(WPF\s*window|UserControl|dockable|ribbon\s*panel|custom\s*UI|modeless\s*dialog)\b", "custom UI / WPF window creation"),
             (@"\b(DataGrid|TreeView|ListView|TabControl|MVVM)\b", "complex UI components"),
 
             // Scheduling / automation
-            (@"\b(schedule|automat|timer|recurring|background\s*task)\b", "scheduled / automated tasks"),
+            (@"\b(timer|recurring\s*task|background\s*task|cron|windows\s*task\s*scheduler)\b", "scheduled / automated tasks"),
 
             // Advanced structural / analytical
             (@"\b(AnalyticalModel|structural\s*analysis|FEA|finite\s*element)\b", "structural analysis operations"),
