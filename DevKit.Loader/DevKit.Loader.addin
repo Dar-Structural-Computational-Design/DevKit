@@ -2,7 +2,7 @@
 <RevitAddIns>
   <AddIn Type="Application">
     <Name>DevKit Loader</Name>
-    <Assembly>DevKit.Loader.dll</Assembly>
+    <Assembly>.\DevKit\DevKit.Loader.dll</Assembly>
     <FullClassName>DevKit.Loader.DevKitLoaderApp</FullClassName>
     <AddInId>B2C3D4E5-F6A7-4890-BCDE-F12345678901</AddInId>
     <VendorId>DAR</VendorId>

@@ -77,8 +77,4 @@
 		<Resource Include="Resources\*.png" />
 	</ItemGroup>
 
-	<ItemGroup>
-		<None Include="DevKit.addin" CopyToOutputDirectory="PreserveNewest" />
-	</ItemGroup>
-
 </Project>

@@ -8,7 +8,7 @@ namespace DevKit.Loader
     public class DevKitLoaderApp : IExternalApplication
     {
         // TODO: adjust when server path changes. Revit version is appended at runtime (e.g. "\2022").
-        private static readonly string ServerBasePath = @"K:\Dar_Cads\General\Computational Design Team\Revit API Tools\Dar Piles Suite V3";
+        private static readonly string ServerBasePath = @"K:\Dar_Cads\General\Computational Design Team\Revit API Tools\DevKit";
         private static readonly string LocalBasePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DevKit");
         private const string VersionFile = "version.txt";
         private const string DevKitDllName = "DevKit.dll";
