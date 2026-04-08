@@ -48,6 +48,22 @@ namespace DevKit.Loader
                     return Result.Failed;
                 }
 
+                // Sanity check: Roslyn DLLs MUST be present in the local cache, otherwise the ALC
+                // can't isolate them and DevKit will pick up Revit's older preloaded version.
+                string roslynCommon = Path.Combine(_localPath, "Microsoft.CodeAnalysis.dll");
+                string roslynCSharp = Path.Combine(_localPath, "Microsoft.CodeAnalysis.CSharp.dll");
+                if (!File.Exists(roslynCommon) || !File.Exists(roslynCSharp))
+                {
+                    TaskDialog.Show("DevKit Loader Error",
+                        "Roslyn DLLs are missing from the local cache.\n\n" +
+                        $"Cache: {_localPath}\n\n" +
+                        $"Missing: {(File.Exists(roslynCommon) ? "" : "Microsoft.CodeAnalysis.dll  ")}" +
+                        $"{(File.Exists(roslynCSharp) ? "" : "Microsoft.CodeAnalysis.CSharp.dll")}\n\n" +
+                        "Make sure the server folder contains the FULL DevKit build output (not just DevKit.dll).\n" +
+                        $"Server: {_serverPath}");
+                    return Result.Failed;
+                }
+
                 Assembly asm;
 #if NET8_0_OR_GREATER
                 // On .NET 8 (Revit 2025+), Revit preloads its own (older) Microsoft.CodeAnalysis.dll.
@@ -55,6 +71,13 @@ namespace DevKit.Loader
                 // Revit's. RevitAPI/RevitAPIUI/runtime assemblies fall through to the default context
                 // so types stay identity-equal across the boundary.
                 var alc = new IsolatedLoadContext(_localPath);
+
+                // CRITICAL: Pre-load Roslyn into the isolated ALC BEFORE DevKit.dll is touched.
+                // This guarantees that when DevKit's JIT first resolves Microsoft.CodeAnalysis.CSharp,
+                // our 4.8.0 copy is already in the ALC and gets used instead of Revit's older one.
+                alc.LoadFromAssemblyPath(roslynCommon);
+                alc.LoadFromAssemblyPath(roslynCSharp);
+
                 asm = alc.LoadFromAssemblyPath(localDll);
 #else
                 // On .NET Framework, Revit does not preload Roslyn — simple LoadFrom + AssemblyResolve works.
@@ -139,6 +162,8 @@ namespace DevKit.Loader
             {
                 try
                 {
+                    // Wipe stale files first so removed/renamed deps don't linger in the cache
+                    WipeDirectoryContents(_localPath);
                     CopyDirectory(_serverPath, _localPath);
                     if (!string.IsNullOrEmpty(serverVersion))
                         File.WriteAllText(Path.Combine(_localPath, VersionFile), serverVersion);
@@ -168,6 +193,21 @@ namespace DevKit.Loader
                 return File.ReadAllText(path).Trim();
             }
             catch { return null; }
+        }
+
+        private static void WipeDirectoryContents(string folder)
+        {
+            if (!Directory.Exists(folder)) return;
+            foreach (string file in Directory.GetFiles(folder))
+            {
+                try { File.Delete(file); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[DevKit Loader] Wipe skip {file}: {ex.Message}"); }
+            }
+            foreach (string dir in Directory.GetDirectories(folder))
+            {
+                try { Directory.Delete(dir, recursive: true); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[DevKit Loader] Wipe skip {dir}: {ex.Message}"); }
+            }
         }
 
         private static void CopyDirectory(string src, string dst)
