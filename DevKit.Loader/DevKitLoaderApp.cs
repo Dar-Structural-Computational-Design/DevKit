@@ -2,6 +2,9 @@ using System;
 using System.IO;
 using System.Reflection;
 using Autodesk.Revit.UI;
+#if NET8_0_OR_GREATER
+using System.Runtime.Loader;
+#endif
 
 namespace DevKit.Loader
 {
@@ -45,10 +48,20 @@ namespace DevKit.Loader
                     return Result.Failed;
                 }
 
-                // Install resolver BEFORE loading so dependent assemblies can be found
+                Assembly asm;
+#if NET8_0_OR_GREATER
+                // On .NET 8 (Revit 2025+), Revit preloads its own (older) Microsoft.CodeAnalysis.dll.
+                // Use a custom AssemblyLoadContext so DevKit gets its OWN bundled Roslyn instead of
+                // Revit's. RevitAPI/RevitAPIUI/runtime assemblies fall through to the default context
+                // so types stay identity-equal across the boundary.
+                var alc = new IsolatedLoadContext(_localPath);
+                asm = alc.LoadFromAssemblyPath(localDll);
+#else
+                // On .NET Framework, Revit does not preload Roslyn — simple LoadFrom + AssemblyResolve works.
                 AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
+                asm = Assembly.LoadFrom(localDll);
+#endif
 
-                var asm = Assembly.LoadFrom(localDll);
                 var type = asm.GetType(DevKitAppFullName, throwOnError: true);
                 _innerApp = Activator.CreateInstance(type);
 
@@ -193,5 +206,35 @@ namespace DevKit.Loader
             catch { }
             return null;
         }
+
+#if NET8_0_OR_GREATER
+        // Isolated context: prefer DLLs from _localPath, fall through to default for shared assemblies
+        // (RevitAPI, RevitAPIUI, AdWindows, mscorlib, System.*, WindowsBase, PresentationFramework, etc.).
+        private sealed class IsolatedLoadContext : AssemblyLoadContext
+        {
+            private readonly string _baseDir;
+
+            public IsolatedLoadContext(string baseDir)
+                : base("DevKitIsolated", isCollectible: false)
+            {
+                _baseDir = baseDir;
+            }
+
+            protected override Assembly Load(AssemblyName assemblyName)
+            {
+                try
+                {
+                    string candidate = Path.Combine(_baseDir, assemblyName.Name + ".dll");
+                    if (File.Exists(candidate))
+                        return LoadFromAssemblyPath(candidate);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[DevKit Loader] ALC load failed for {assemblyName.Name}: {ex.Message}");
+                }
+                return null; // fall through to Default ALC
+            }
+        }
+#endif
     }
 }
