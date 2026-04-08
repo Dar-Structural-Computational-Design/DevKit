@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>DevKit Loader</Name>
+    <Assembly>DevKit.Loader.dll</Assembly>
+    <FullClassName>DevKit.Loader.DevKitLoaderApp</FullClassName>
+    <AddInId>B2C3D4E5-F6A7-4890-BCDE-F12345678901</AddInId>
+    <VendorId>DAR</VendorId>
+    <VendorDescription>DevKit Loader — Auto-updates DevKit from firm server</VendorDescription>
+  </AddIn>
+</RevitAddIns>

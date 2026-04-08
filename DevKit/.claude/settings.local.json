@@ -3,7 +3,11 @@
     "allow": [
       "Read(//d/Dar Projects/C#/DevKit/**)",
       "Bash(dotnet build:*)",
-      "Bash(dotnet add:*)"
+      "Bash(dotnet add:*)",
+      "Bash(dotnet sln:*)",
+      "Bash(for cfg:*)",
+      "Bash(do echo:*)",
+      "Bash(done)"
     ]
   }
 }
