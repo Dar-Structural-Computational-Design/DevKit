@@ -7,13 +7,15 @@ namespace DevKit.Loader
 {
     public class DevKitLoaderApp : IExternalApplication
     {
-        // TODO: adjust when server path changes
-        private static readonly string ServerPath = @"K:\Dar_Cads\General\Computational Design Team\Revit API Tools\Dar Piles Suite V3";
-        private static readonly string LocalPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DevKit");
+        // TODO: adjust when server path changes. Revit version is appended at runtime (e.g. "\2022").
+        private static readonly string ServerBasePath = @"K:\Dar_Cads\General\Computational Design Team\Revit API Tools\Dar Piles Suite V3";
+        private static readonly string LocalBasePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DevKit");
         private const string VersionFile = "version.txt";
         private const string DevKitDllName = "DevKit.dll";
         private const string DevKitAppFullName = "DevKit.DevKitApp";
 
+        private string _serverPath;
+        private string _localPath;
         private object _innerApp;
         private MethodInfo _shutdownMi;
 
@@ -21,18 +23,22 @@ namespace DevKit.Loader
         {
             try
             {
-                Directory.CreateDirectory(LocalPath);
+                string revitVersion = app.ControlledApplication.VersionNumber; // "2022", "2023", ...
+                _serverPath = Path.Combine(ServerBasePath, revitVersion);
+                _localPath = Path.Combine(LocalBasePath, revitVersion);
+
+                Directory.CreateDirectory(_localPath);
 
                 if (!SyncFromServer())
                 {
                     TaskDialog.Show("DevKit Loader",
-                        "Server is unreachable and no local DevKit copy was found.\n\n" +
-                        $"Expected server: {ServerPath}\n" +
-                        $"Local cache: {LocalPath}");
+                        $"Server is unreachable and no local DevKit copy was found for Revit {revitVersion}.\n\n" +
+                        $"Expected server: {_serverPath}\n" +
+                        $"Local cache: {_localPath}");
                     return Result.Failed;
                 }
 
-                string localDll = Path.Combine(LocalPath, DevKitDllName);
+                string localDll = Path.Combine(_localPath, DevKitDllName);
                 if (!File.Exists(localDll))
                 {
                     TaskDialog.Show("DevKit Loader", $"DevKit.dll not found at:\n{localDll}");
@@ -85,10 +91,10 @@ namespace DevKit.Loader
             bool serverReachable = false;
             try
             {
-                if (Directory.Exists(ServerPath))
+                if (Directory.Exists(_serverPath))
                 {
                     serverReachable = true;
-                    serverVersion = ReadVersionOrNull(ServerPath);
+                    serverVersion = ReadVersionOrNull(_serverPath);
                 }
             }
             catch (Exception ex)
@@ -97,7 +103,7 @@ namespace DevKit.Loader
                 serverReachable = false;
             }
 
-            bool localDllExists = File.Exists(Path.Combine(LocalPath, DevKitDllName));
+            bool localDllExists = File.Exists(Path.Combine(_localPath, DevKitDllName));
 
             if (!serverReachable)
             {
@@ -105,13 +111,13 @@ namespace DevKit.Loader
                 {
                     TaskDialog.Show("DevKit Loader",
                         "Server unreachable — using last local copy of DevKit.\n\n" +
-                        $"Server: {ServerPath}");
+                        $"Server: {_serverPath}");
                     return true;
                 }
                 return false;
             }
 
-            string localVersion = ReadVersionOrNull(LocalPath);
+            string localVersion = ReadVersionOrNull(_localPath);
             bool needCopy = !localDllExists
                             || string.IsNullOrEmpty(localVersion)
                             || !string.Equals(localVersion, serverVersion, StringComparison.Ordinal);
@@ -120,9 +126,9 @@ namespace DevKit.Loader
             {
                 try
                 {
-                    CopyDirectory(ServerPath, LocalPath);
+                    CopyDirectory(_serverPath, _localPath);
                     if (!string.IsNullOrEmpty(serverVersion))
-                        File.WriteAllText(Path.Combine(LocalPath, VersionFile), serverVersion);
+                        File.WriteAllText(Path.Combine(_localPath, VersionFile), serverVersion);
                 }
                 catch (Exception ex)
                 {
@@ -137,7 +143,7 @@ namespace DevKit.Loader
                 }
             }
 
-            return File.Exists(Path.Combine(LocalPath, DevKitDllName));
+            return File.Exists(Path.Combine(_localPath, DevKitDllName));
         }
 
         private static string ReadVersionOrNull(string folder)
@@ -175,12 +181,12 @@ namespace DevKit.Loader
             }
         }
 
-        private static Assembly ResolveAssembly(object sender, ResolveEventArgs args)
+        private Assembly ResolveAssembly(object sender, ResolveEventArgs args)
         {
             try
             {
                 string simpleName = new AssemblyName(args.Name).Name + ".dll";
-                string candidate = Path.Combine(LocalPath, simpleName);
+                string candidate = Path.Combine(_localPath, simpleName);
                 if (File.Exists(candidate))
                     return Assembly.LoadFrom(candidate);
             }
