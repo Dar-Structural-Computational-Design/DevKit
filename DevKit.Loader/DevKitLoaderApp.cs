@@ -90,6 +90,9 @@ namespace DevKit.Loader
                 alc.LoadFromAssemblyPath(roslynCSharp);
 
                 asm = alc.LoadFromAssemblyPath(localDll);
+
+                AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
+
 #else
                 // On .NET Framework, Revit does not preload Roslyn — simple LoadFrom + AssemblyResolve works.
                 AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;

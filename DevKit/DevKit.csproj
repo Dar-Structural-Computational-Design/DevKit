@@ -79,10 +79,15 @@
 
 	<ItemGroup>
 	  <None Remove="Icons\Devkit32.png" />
+	  <None Remove="Images\Devkit512.png" />
 	</ItemGroup>
 
 	<ItemGroup>
 	  <EmbeddedResource Include="Icons\Devkit32.png" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Resource Include="Images\Devkit512.png" />
 	</ItemGroup>
 
 </Project>
