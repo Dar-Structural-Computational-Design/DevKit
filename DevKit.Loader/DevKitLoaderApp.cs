@@ -22,7 +22,7 @@ namespace DevKit.Loader
         //   ...
         // Note: raw.githubusercontent.com applies a ~5-minute CDN cache, so updates can take up to that long
         // to propagate to users after you push.
-        private const string RawBaseUrl = "https://raw.githubusercontent.com/<Dar-Structural-Computational-Design>/<REPO>/DevKit/releases";
+        private const string RawBaseUrl = "https://raw.githubusercontent.com/Dar-Structural-Computational-Design/DevKit/releases";
         private const string UserAgent = "DevKit.Loader";
         private static readonly string LocalBasePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DevKit");
         private const string VersionFile = "version.txt";
