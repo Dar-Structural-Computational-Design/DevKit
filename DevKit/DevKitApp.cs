@@ -32,8 +32,14 @@ namespace DevKit
         {
             try
             {
-                string addinFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
+                string addinFolder = Path.GetDirectoryName(typeof(DevKitApp).Assembly.Location);
+                if (string.IsNullOrEmpty(addinFolder))
+                {
+                    addinFolder = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                        "DevKit",
+                        app.ControlledApplication.VersionNumber);
+                }
 
                 AppDomain.CurrentDomain.AssemblyResolve += (s, args) =>
                 {
