@@ -10,7 +10,7 @@ using DevKit.Models;
 
 namespace DevKit.Services
 {
-    public class LocalLlmService
+    public class LLM_service
     {
         private static readonly HttpClient _http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
 
@@ -42,8 +42,8 @@ When the user asks you to WRITE or GENERATE code, follow these rules for the cod
 - Any classes from external packages, use the full qualified class name.
 - For Excel operations, use NPOI Package.
 - For JSON operations, use Newtonsoft.Json Package.
--You may create a UI window if the user asks you to, but you have to fully create in C# with out creating a new class.
-- Any new UI window you create, make it minimal as possible and without any styles
+-You may create a UI window if the user asks you to, but you have to fully create in C# with out creating a new class, and add 100 to the height of the windows, to make sure that all controls are visible.
+- Any new UI window you create, make it minimal as possible and without any styles, but add 100 to the height of the windows, to make sure that all controls are visible.
 
 COMPLEXITY RULES — IMPORTANT:
 - You can ONLY create simple, single-purpose tools. Simple means: collect/filter elements, read/set parameters, change types, move/copy/delete, create basic elements (walls, columns, beams by points), show info via TaskDialog, color/override elements in views, simple transactions.
@@ -74,7 +74,7 @@ BEHAVIOR RULES:
         private readonly List<ChatMessage> _history = new List<ChatMessage>();
         public IReadOnlyList<ChatMessage> History => _history.AsReadOnly();
 
-        public LocalLlmService()
+        public LLM_service()
         {
             _history.Add(new ChatMessage { Role = "system", Content = SYSTEM_PROMPT });
         }
@@ -131,7 +131,7 @@ BEHAVIOR RULES:
             _history.Add(new ChatMessage { Role = "user", Content = userMessage + reminder });
 
             // Trim: keep system prompt + last 5 messages
-            TrimHistory(5);
+            TrimHistory(10);
 
             try
             {

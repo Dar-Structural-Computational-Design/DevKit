@@ -19,7 +19,7 @@ namespace DevKit.ViewModels
     {
         private readonly RoslynCompilerService _compiler;
         private readonly ScriptManagerService _scriptManager;
-        private readonly LocalLlmService _llmService;
+        private readonly LLM_service _llmService;
         private readonly Dispatcher _dispatcher;
 
         private string _code = "TaskDialog.Show(\"Hello\", \"Hello from DevKit!\\nDocument: \" + doc.Title);";
@@ -122,7 +122,7 @@ namespace DevKit.ViewModels
             _dispatcher = Dispatcher.CurrentDispatcher;
             _compiler = DevKitApp.Compiler;
             _scriptManager = DevKitApp.ScriptManager;
-            _llmService = new LocalLlmService();
+            _llmService = new LLM_service();
             _settings = UserSettings.Load(DevKitApp.ScriptsFolderPath);
             _claudeApiKey = _settings.ClaudeApiKey ?? "";
 
@@ -334,7 +334,7 @@ namespace DevKit.ViewModels
             AiStatus = "Scanning..."; LlmProviders.Clear();
             try
             {
-                foreach (var p in LocalLlmService.GetClaudeProviders(_claudeApiKey, _settings.ClaudeModel)) LlmProviders.Add(p);
+                foreach (var p in LLM_service.GetClaudeProviders(_claudeApiKey, _settings.ClaudeModel)) LlmProviders.Add(p);
                 foreach (var p in await _llmService.DetectProvidersAsync()) if (!LlmProviders.Any(x => x.BaseUrl == p.BaseUrl && x.ModelId == p.ModelId)) LlmProviders.Add(p);
                 if (LlmProviders.Count > 0) { var local = LlmProviders.FirstOrDefault(p => p.Type != LlmType.ClaudeApi); SelectedProvider = !string.IsNullOrEmpty(_claudeApiKey) ? LlmProviders[0] : local ?? LlmProviders[0]; AiStatus = $"{LlmProviders.Count} model(s) available"; }
                 else AiStatus = "No LLMs found.";
@@ -381,7 +381,7 @@ namespace DevKit.ViewModels
                     AddCost(SelectedProvider.ModelId, resp.InputTokens, resp.OutputTokens);
 
                 if (string.IsNullOrWhiteSpace(raw)) { ShowError("Empty response."); ChatHistory.Add(new ChatMessage { Role = "assistant", Content = "(empty)" }); return; }
-                var (chat, code) = LocalLlmService.SplitResponse(raw);
+                var (chat, code) = LLM_service.SplitResponse(raw);
                 ChatHistory.Add(new ChatMessage { Role = "assistant", Content = raw });
                 if (!string.IsNullOrEmpty(code))
                 {
@@ -408,7 +408,7 @@ namespace DevKit.ViewModels
                 if (SelectedProvider.Type == LlmType.ClaudeApi)
                     AddCost(SelectedProvider.ModelId, resp.InputTokens, resp.OutputTokens);
 
-                var (_, code) = LocalLlmService.SplitResponse(raw);
+                var (_, code) = LLM_service.SplitResponse(raw);
                 string fixedCode = !string.IsNullOrEmpty(code) ? code : raw;
                 if (!string.IsNullOrWhiteSpace(fixedCode))
                 {
@@ -437,7 +437,7 @@ namespace DevKit.ViewModels
                 return;
             }
 
-            GeneratedPrompt = LocalLlmService.SYSTEM_PROMPT + "\n\n---\n\nUser Request:\n" + prompt;
+            GeneratedPrompt = LLM_service.SYSTEM_PROMPT + "\n\n---\n\nUser Request:\n" + prompt;
             ManualPrompt = "";
             SetStatus("Prompt generated — copy and paste into any AI.", "#A6E3A1");
         }
@@ -522,6 +522,13 @@ namespace DevKit.ViewModels
 
         private static readonly (string pattern, string reason)[] ComplexityPatterns =
         {
+            // Geometry intersections between categories
+            (@"\b(intersect|intersection|clash|collision|overlap)\b", "geometry intersection / clash detection"),
+            (@"\b(solid.*intersect|BooleanOperation|ElementIntersects|ray\s*cast|ReferenceIntersector)\b", "solid geometry operations"),
+
+            // Opening / penetration creation from intersections
+            (@"\b(opening|penetration|sleeve|cutout)\b.*\b(wall|floor|slab|ceiling)\b", "opening/penetration creation"),
+            (@"\b(wall|floor|slab|ceiling)\b.*\b(opening|penetration|sleeve|cutout)\b", "opening/penetration creation"),
 
             // Multi-document / linked models
             (@"\b(linked\s*model|RevitLinkInstance|RevitLinkType|GetLinkDocument)\b", "linked model operations"),
@@ -538,8 +545,19 @@ namespace DevKit.ViewModels
             (@"\b(web\s*request|rest\s*api|soap|websocket|database|sql|mongo|firebase)\b", "external API / database access"),
             (@"\b(HttpClient|WebClient|RestSharp|HttpWebRequest)\b", "web request operations"),
 
+            // Complex file operations
+            (@"\b(excel|spreadsheet|csv\s*export|xlsx|ClosedXML|NPOI|EPPlus)\b", "Excel / spreadsheet operations"),
+            (@"\b(export.*pdf|create.*pdf|generate.*pdf|pdf.*export|iTextSharp|PdfSharp)\b", "PDF generation"),
+
             // Batch processing across many categories
             (@"\b(entire\s*model|every\s*(element|instance|family)\s*in\s*(the\s*)?project)\b", "model-wide batch processing"),
+
+            // Complex UI beyond TaskDialog
+            (@"\b(WPF\s*window|UserControl|dockable|ribbon\s*panel|custom\s*UI|modeless\s*dialog)\b", "custom UI / WPF window creation"),
+            (@"\b(DataGrid|TreeView|ListView|TabControl|MVVM)\b", "complex UI components"),
+
+            // Scheduling / automation
+            (@"\b(timer|recurring\s*task|background\s*task|cron|windows\s*task\s*scheduler)\b", "scheduled / automated tasks"),
 
             // Advanced structural / analytical
             (@"\b(AnalyticalModel|structural\s*analysis|FEA|finite\s*element)\b", "structural analysis operations"),
