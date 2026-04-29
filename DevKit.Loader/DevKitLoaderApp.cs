@@ -1,5 +1,8 @@
 using System;
 using System.IO;
+using System.IO.Compression;
+using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using Autodesk.Revit.UI;
 #if NET8_0_OR_GREATER
@@ -10,16 +13,23 @@ namespace DevKit.Loader
 {
     public class DevKitLoaderApp : IExternalApplication
     {
-        // TODO: adjust when server path changes. Revit version is appended at runtime (e.g. "\2022").
-        //private static readonly string ServerBasePath = @"K:\Dar_Cads\General\Computational Design Team\Revit API Tools\DevKit";
-        //private static readonly string ServerBasePath = @"C:\Users\mosta\Desktop\DevKit Server"; // Personal PC
-        private static readonly string ServerBasePath = @"C:\Users\mostafa.elbagoury\Desktop\ServerTest\DevKit"; // Dar PC
+        // TODO: replace <OWNER>/<REPO> with the actual GitHub repo. If your default branch is "main"
+        // instead of "master", change the path segment too.
+        // Repo layout expected at this path:
+        //   releases/version.txt          — single line, the current release version (bump to deploy)
+        //   releases/DevKit-2022.zip      — one zip per Revit version, contents go into %AppData%\DevKit\<YYYY>
+        //   releases/DevKit-2023.zip
+        //   ...
+        // Note: raw.githubusercontent.com applies a ~5-minute CDN cache, so updates can take up to that long
+        // to propagate to users after you push.
+        private const string RawBaseUrl = "https://raw.githubusercontent.com/<Dar-Structural-Computational-Design>/<REPO>/DevKit/releases";
+        private const string UserAgent = "DevKit.Loader";
         private static readonly string LocalBasePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DevKit");
         private const string VersionFile = "version.txt";
         private const string DevKitDllName = "DevKit.dll";
         private const string DevKitAppFullName = "DevKit.DevKitApp";
 
-        private string _serverPath;
+        private string _revitVersion;
         private string _localPath;
         private object _innerApp;
         private MethodInfo _shutdownMi;
@@ -28,17 +38,16 @@ namespace DevKit.Loader
         {
             try
             {
-                string revitVersion = app.ControlledApplication.VersionNumber; // "2022", "2023", ...
-                _serverPath = Path.Combine(ServerBasePath, revitVersion);
-                _localPath = Path.Combine(LocalBasePath, revitVersion);
+                _revitVersion = app.ControlledApplication.VersionNumber; // "2022", "2023", ...
+                _localPath = Path.Combine(LocalBasePath, _revitVersion);
 
                 Directory.CreateDirectory(_localPath);
 
                 if (!SyncFromServer())
                 {
                     TaskDialog.Show("DevKit Loader",
-                        $"Server is unreachable and no local DevKit copy was found for Revit {revitVersion}.\n\n" +
-                        $"Expected server: {_serverPath}\n" +
+                        $"GitHub is unreachable and no local DevKit copy was found for Revit {_revitVersion}.\n\n" +
+                        $"Release feed: {RawBaseUrl}\n" +
                         $"Local cache: {_localPath}");
                     return Result.Failed;
                 }
@@ -61,8 +70,8 @@ namespace DevKit.Loader
                         $"Cache: {_localPath}\n\n" +
                         $"Missing: {(File.Exists(roslynCommon) ? "" : "Microsoft.CodeAnalysis.dll  ")}" +
                         $"{(File.Exists(roslynCSharp) ? "" : "Microsoft.CodeAnalysis.CSharp.dll")}\n\n" +
-                        "Make sure the server folder contains the FULL DevKit build output (not just DevKit.dll).\n" +
-                        $"Server: {_serverPath}");
+                        $"Make sure the release zip DevKit-{_revitVersion}.zip contains the FULL DevKit build output (not just DevKit.dll).\n" +
+                        $"Release feed: {RawBaseUrl}");
                     return Result.Failed;
                 }
 
@@ -125,62 +134,78 @@ namespace DevKit.Loader
         // Returns true if DevKit is available locally (either freshly synced or falling back to cache).
         private bool SyncFromServer()
         {
-            string serverVersion = null;
-            bool serverReachable = false;
+            bool localDllExists = File.Exists(Path.Combine(_localPath, DevKitDllName));
+            string versionUrl = $"{RawBaseUrl}/{VersionFile}";
+            string zipUrl = $"{RawBaseUrl}/DevKit-{_revitVersion}.zip";
+
+            // 1. Probe GitHub for the current published version.
+            string remoteVersion;
             try
             {
-                if (Directory.Exists(_serverPath))
+                ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+                using (var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) })
                 {
-                    serverReachable = true;
-                    serverVersion = ReadVersionOrNull(_serverPath);
+                    http.DefaultRequestHeaders.Add("User-Agent", UserAgent);
+                    remoteVersion = http.GetStringAsync(versionUrl).GetAwaiter().GetResult().Trim();
                 }
+                if (string.IsNullOrEmpty(remoteVersion))
+                    throw new Exception("Remote version.txt was empty.");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("[DevKit Loader] Server probe failed: " + ex.Message);
-                serverReachable = false;
-            }
-
-            bool localDllExists = File.Exists(Path.Combine(_localPath, DevKitDllName));
-
-            if (!serverReachable)
-            {
+                System.Diagnostics.Debug.WriteLine("[DevKit Loader] Remote version probe failed: " + ex.Message);
                 if (localDllExists)
                 {
                     TaskDialog.Show("DevKit Loader",
-                        "Server unreachable — using last local copy of DevKit.\n\n" +
-                        $"Server: {_serverPath}");
+                        "GitHub unreachable — using last local copy of DevKit.\n\n" + versionUrl);
                     return true;
                 }
                 return false;
             }
 
+            // 2. Skip download if local cache already matches the remote version.
             string localVersion = ReadVersionOrNull(_localPath);
-            bool needCopy = !localDllExists
-                            || string.IsNullOrEmpty(localVersion)
-                            || !string.Equals(localVersion, serverVersion, StringComparison.Ordinal);
+            bool needDownload = !localDllExists
+                                || string.IsNullOrEmpty(localVersion)
+                                || !string.Equals(localVersion, remoteVersion, StringComparison.Ordinal);
 
-            if (needCopy)
+            if (!needDownload) return true;
+
+            // 3. Download zip → wipe cache → extract → write version.txt.
+            string tempZip = Path.Combine(Path.GetTempPath(), $"DevKit-{_revitVersion}-{Guid.NewGuid():N}.zip");
+            try
             {
-                try
+                using (var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) })
                 {
-                    // Wipe stale files first so removed/renamed deps don't linger in the cache
-                    WipeDirectoryContents(_localPath);
-                    CopyDirectory(_serverPath, _localPath);
-                    if (!string.IsNullOrEmpty(serverVersion))
-                        File.WriteAllText(Path.Combine(_localPath, VersionFile), serverVersion);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine("[DevKit Loader] Copy failed: " + ex.Message);
-                    if (localDllExists)
+                    http.DefaultRequestHeaders.Add("User-Agent", UserAgent);
+                    using (var resp = http.GetAsync(zipUrl).GetAwaiter().GetResult())
                     {
-                        TaskDialog.Show("DevKit Loader",
-                            "Failed to update DevKit from server — using last local copy.\n\n" + ex.Message);
-                        return true;
+                        resp.EnsureSuccessStatusCode();
+                        using (var fs = new FileStream(tempZip, FileMode.Create, FileAccess.Write))
+                        {
+                            resp.Content.CopyToAsync(fs).GetAwaiter().GetResult();
+                        }
                     }
-                    return false;
                 }
+
+                WipeDirectoryContents(_localPath);
+                ZipFile.ExtractToDirectory(tempZip, _localPath);
+                File.WriteAllText(Path.Combine(_localPath, VersionFile), remoteVersion);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[DevKit Loader] Download/extract failed: " + ex.Message);
+                if (localDllExists)
+                {
+                    TaskDialog.Show("DevKit Loader",
+                        "Failed to update DevKit — using last local copy.\n\n" + ex.Message);
+                    return true;
+                }
+                return false;
+            }
+            finally
+            {
+                try { if (File.Exists(tempZip)) File.Delete(tempZip); } catch { }
             }
 
             return File.Exists(Path.Combine(_localPath, DevKitDllName));
@@ -209,30 +234,6 @@ namespace DevKit.Loader
             {
                 try { Directory.Delete(dir, recursive: true); }
                 catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[DevKit Loader] Wipe skip {dir}: {ex.Message}"); }
-            }
-        }
-
-        private static void CopyDirectory(string src, string dst)
-        {
-            Directory.CreateDirectory(dst);
-
-            foreach (string file in Directory.GetFiles(src))
-            {
-                string dest = Path.Combine(dst, Path.GetFileName(file));
-                try
-                {
-                    File.Copy(file, dest, overwrite: true);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[DevKit Loader] Skipped {file}: {ex.Message}");
-                }
-            }
-
-            foreach (string dir in Directory.GetDirectories(src))
-            {
-                string destSub = Path.Combine(dst, Path.GetFileName(dir));
-                CopyDirectory(dir, destSub);
             }
         }
 

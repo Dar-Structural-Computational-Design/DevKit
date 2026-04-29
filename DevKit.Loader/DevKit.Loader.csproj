@@ -58,6 +58,13 @@
 		</Reference>
 	</ItemGroup>
 
+	<!-- ZipFile lives in System.IO.Compression.FileSystem on net48; .NET 8 includes it in the BCL. -->
+	<ItemGroup Condition="'$(TargetFramework)'=='net48'">
+		<Reference Include="System.Net.Http" />
+		<Reference Include="System.IO.Compression" />
+		<Reference Include="System.IO.Compression.FileSystem" />
+	</ItemGroup>
+
 	<ItemGroup>
 		<None Include="DevKit.Loader.addin" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
