@@ -61,7 +61,6 @@ namespace DevKit.ViewModels
         public string MoveToGroup { get => _moveToGroup; set => SetProperty(ref _moveToGroup, value); }
         public string ManualPrompt { get => _manualPrompt; set => SetProperty(ref _manualPrompt, value); }
         public string GeneratedPrompt { get => _generatedPrompt; set => SetProperty(ref _generatedPrompt, value); }
-        public bool IsClaudeSelected => _selectedProvider?.Type == LlmType.ClaudeApi;
         public List<ThemeInfo> AvailableThemes { get; } = ThemeManager.GetAllThemes();
         public ThemeInfo SelectedTheme
         {
@@ -87,7 +86,7 @@ namespace DevKit.ViewModels
         public LlmProvider SelectedProvider
         {
             get => _selectedProvider;
-            set { if (SetProperty(ref _selectedProvider, value)) OnPropertyChanged(nameof(IsClaudeSelected)); }
+            set => SetProperty(ref _selectedProvider, value);
         }
 
         public ObservableCollection<Snippet> Snippets { get; } = new ObservableCollection<Snippet>();
@@ -105,7 +104,6 @@ namespace DevKit.ViewModels
         public ICommand AiGenerateCommand { get; }
         public ICommand AiSendErrorCommand { get; }
         public ICommand AiClearChatCommand { get; }
-        public ICommand RefreshLlmCommand { get; }
         public ICommand SaveApiKeyCommand { get; }
         public ICommand CreateGroupCommand { get; }
         public ICommand DeleteGroupCommand { get; }
@@ -135,7 +133,6 @@ namespace DevKit.ViewModels
             AiGenerateCommand = new RelayCommand(async () => await ExecuteAiGenerate());
             AiSendErrorCommand = new RelayCommand(async () => await ExecuteAiSendError());
             AiClearChatCommand = new RelayCommand(() => { _llmService.ClearHistory(); ChatHistory.Clear(); AiStatus = "Chat cleared."; });
-            RefreshLlmCommand = new RelayCommand(async () => await DetectLlmProviders());
             SaveApiKeyCommand = new RelayCommand(ExecuteSaveApiKey);
             CreateGroupCommand = new RelayCommand(ExecuteCreateGroup);
             DeleteGroupCommand = new RelayCommand(ExecuteDeleteGroup);
@@ -169,7 +166,7 @@ namespace DevKit.ViewModels
             SelectedSnippet = Snippets.FirstOrDefault();
             ExecuteRefreshScripts();
             RefreshGroups();
-            _ = DetectLlmProviders();
+            LoadClaudeProviders();
         }
 
         // ── THEME ──
@@ -297,17 +294,12 @@ namespace DevKit.ViewModels
         private void RefreshGroups() { Groups.Clear(); foreach (var g in _scriptManager.LoadGroups()) Groups.Add(g); if (!Groups.Contains(SelectedGroup)) SelectedGroup = Groups.FirstOrDefault() ?? "Scripts"; }
         private void ExecuteCreateGroup()
         {
-            string name = "";
-            var dlg = new Window { Title = "New Group", Width = 360, Height = 160, ResizeMode = ResizeMode.NoResize, WindowStartupLocation = WindowStartupLocation.CenterScreen, Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1E, 0x1E, 0x2E)) };
-            var sp = new System.Windows.Controls.StackPanel { Margin = new Thickness(16) };
-            var tb = new System.Windows.Controls.TextBox { FontSize = 14, Padding = new Thickness(8, 6, 8, 6), Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x18, 0x18, 0x25)), Foreground = System.Windows.Media.Brushes.White, BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x45, 0x47, 0x5A)) };
-            var btn = new System.Windows.Controls.Button { Content = "Create", Margin = new Thickness(0, 12, 0, 0), Padding = new Thickness(20, 8, 20, 8) };
-            btn.Click += (s, e) => { name = tb.Text; dlg.DialogResult = true; };
-            sp.Children.Add(new System.Windows.Controls.TextBlock { Text = "Group name:", Foreground = System.Windows.Media.Brushes.White, FontSize = 13, Margin = new Thickness(0, 0, 0, 8) });
-            sp.Children.Add(tb); sp.Children.Add(btn); dlg.Content = sp;
-            if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(name)) return;
-            name = name.Trim(); _scriptManager.AddGroup(name);
-            SharedState.GroupName = name; SharedState.OnResultCallback = (ok, msg) => _dispatcher.Invoke(() => { if (ok) SetStatus($"Group '{name}' added!", "#A6E3A1"); else ShowError(msg); });
+            var dlg = new Views.NewGroupWindow { Owner = _ownerWindow };
+            if (dlg.ShowDialog() != true) return;
+            string name = dlg.GroupName;
+            _scriptManager.AddGroup(name);
+            SharedState.GroupName = name;
+            SharedState.OnResultCallback = (ok, msg) => _dispatcher.Invoke(() => { if (ok) SetStatus($"Group '{name}' added!", "#A6E3A1"); else ShowError(msg); });
             DevKitApp.CreateGroupEvent.Raise(); RefreshGroups(); SelectedGroup = name;
         }
         private void ExecuteDeleteGroup()
@@ -329,33 +321,25 @@ namespace DevKit.ViewModels
         }
 
         // ── AI ──
-        private async Task DetectLlmProviders()
+        private void LoadClaudeProviders()
         {
-            AiStatus = "Scanning..."; LlmProviders.Clear();
-            try
-            {
-                foreach (var p in LLM_service.GetClaudeProviders(_claudeApiKey, _settings.ClaudeModel)) LlmProviders.Add(p);
-                foreach (var p in await _llmService.DetectProvidersAsync()) if (!LlmProviders.Any(x => x.BaseUrl == p.BaseUrl && x.ModelId == p.ModelId)) LlmProviders.Add(p);
-                if (LlmProviders.Count > 0) { var local = LlmProviders.FirstOrDefault(p => p.Type != LlmType.ClaudeApi); SelectedProvider = !string.IsNullOrEmpty(_claudeApiKey) ? LlmProviders[0] : local ?? LlmProviders[0]; AiStatus = $"{LlmProviders.Count} model(s) available"; }
-                else AiStatus = "No LLMs found.";
-
-
-                SelectedProvider = LlmProviders.FirstOrDefault();
-
-            }
-            catch (Exception ex) { AiStatus = $"Error: {ex.Message}"; }
+            LlmProviders.Clear();
+            foreach (var p in LLM_service.GetClaudeProviders(_claudeApiKey, _settings.ClaudeModel))
+                LlmProviders.Add(p);
+            SelectedProvider = LlmProviders.FirstOrDefault();
+            AiStatus = LlmProviders.Count > 0 ? $"{LlmProviders.Count} Claude model(s) available" : "No models available.";
         }
         private void ExecuteSaveApiKey()
         {
             string key = ClaudeApiKey?.Trim() ?? ""; _claudeApiKey = key; _settings.ClaudeApiKey = key; _settings.Save(DevKitApp.ScriptsFolderPath);
-            foreach (var p in LlmProviders.Where(p => p.Type == LlmType.ClaudeApi)) p.ApiKey = key;
+            foreach (var p in LlmProviders) p.ApiKey = key;
             AiStatus = string.IsNullOrEmpty(key) ? "API key removed." : "API key saved!";
         }
         private async Task ExecuteAiGenerate()
         {
-            if (SelectedProvider == null) { ShowError("No LLM selected."); return; }
-            if (SelectedProvider.Type == LlmType.ClaudeApi && string.IsNullOrWhiteSpace(SelectedProvider.ApiKey)) { ShowError("Enter Claude API key and click Save."); return; }
-            if (SelectedProvider.Type == LlmType.ClaudeApi && !CheckDailyLimit()) return;
+            if (SelectedProvider == null) { ShowError("No model selected."); return; }
+            if (string.IsNullOrWhiteSpace(SelectedProvider.ApiKey)) { ShowError("Enter Claude API key and click Save."); return; }
+            if (!CheckDailyLimit()) return;
             string prompt = AiPrompt?.Trim(); if (string.IsNullOrEmpty(prompt)) { ShowError("Enter a prompt."); return; }
 
             string complexReason = CheckComplexity(prompt);
@@ -377,8 +361,7 @@ namespace DevKit.ViewModels
             {
                 var resp = await _llmService.SendMessageAsync(SelectedProvider, prompt); // reminder appended internally
                 string raw = resp.Text;
-                if (SelectedProvider.Type == LlmType.ClaudeApi)
-                    AddCost(SelectedProvider.ModelId, resp.InputTokens, resp.OutputTokens);
+                AddCost(SelectedProvider.ModelId, resp.InputTokens, resp.OutputTokens);
 
                 if (string.IsNullOrWhiteSpace(raw)) { ShowError("Empty response."); ChatHistory.Add(new ChatMessage { Role = "assistant", Content = "(empty)" }); return; }
                 var (chat, code) = LLM_service.SplitResponse(raw);
@@ -395,9 +378,9 @@ namespace DevKit.ViewModels
         }
         private async Task ExecuteAiSendError()
         {
-            if (SelectedProvider == null) { ShowError("No LLM selected."); return; }
-            if (SelectedProvider.Type == LlmType.ClaudeApi && string.IsNullOrWhiteSpace(SelectedProvider.ApiKey)) { ShowError("Enter Claude API key."); return; }
-            if (SelectedProvider.Type == LlmType.ClaudeApi && !CheckDailyLimit()) return;
+            if (SelectedProvider == null) { ShowError("No model selected."); return; }
+            if (string.IsNullOrWhiteSpace(SelectedProvider.ApiKey)) { ShowError("Enter Claude API key."); return; }
+            if (!CheckDailyLimit()) return;
             if (string.IsNullOrEmpty(_lastError)) { ShowError("No error. Test first (F5)."); return; }
             IsAiGenerating = true; ButtonsEnabled = false; AiStatus = "Fixing..."; SetStatus("AI fixing...", "#CBA6F7");
             ChatHistory.Add(new ChatMessage { Role = "user", Content = $"[Error Fix]\n{_lastError}" });
@@ -405,8 +388,7 @@ namespace DevKit.ViewModels
             {
                 var resp = await _llmService.SendMessageAsync(SelectedProvider, _llmService.BuildErrorFixMessage(Code?.Trim() ?? "", _lastError));
                 string raw = resp.Text;
-                if (SelectedProvider.Type == LlmType.ClaudeApi)
-                    AddCost(SelectedProvider.ModelId, resp.InputTokens, resp.OutputTokens);
+                AddCost(SelectedProvider.ModelId, resp.InputTokens, resp.OutputTokens);
 
                 var (_, code) = LLM_service.SplitResponse(raw);
                 string fixedCode = !string.IsNullOrEmpty(code) ? code : raw;

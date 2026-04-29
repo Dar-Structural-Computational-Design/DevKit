@@ -14,14 +14,6 @@ namespace DevKit.Services
     {
         private static readonly HttpClient _http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
 
-        private static readonly (string Name, string BaseUrl, LlmType Type)[] KnownEndpoints =
-        {
-            ("Ollama",    "http://localhost:11434", LlmType.OllamaLocal),
-            ("LM Studio", "http://localhost:1234",  LlmType.LmStudio),
-            ("Jan",       "http://localhost:1337",  LlmType.OpenAiCompatible),
-            ("LocalAI",   "http://localhost:8080",  LlmType.OpenAiCompatible),
-        };
-
         public const string SYSTEM_PROMPT = @"You are a helpful Revit development assistant inside a tool called DevKit.
 You can have normal conversations, answer questions, discuss Revit API concepts, and help plan solutions.
 
@@ -85,29 +77,22 @@ BEHAVIOR RULES:
             _history.Add(new ChatMessage { Role = "system", Content = SYSTEM_PROMPT });
         }
 
-        public async Task<List<LlmProvider>> DetectProvidersAsync()
-        {
-            var providers = new List<LlmProvider>();
-            foreach (var (name, baseUrl, type) in KnownEndpoints)
-            {
-                try
-                {
-                    var models = await GetModelsAsync(baseUrl, type);
-                    foreach (var modelId in models)
-                        providers.Add(new LlmProvider { Name = name, BaseUrl = baseUrl, ModelId = modelId, Type = type, IsAvailable = true });
-                }
-                catch { }
-            }
-            return providers;
-        }
-
         public static List<LlmProvider> GetClaudeProviders(string apiKey = null, string preferredModel = null)
         {
-            var models = new[] { "claude-sonnet-4-20250514", "claude-haiku-4-5-20251001" };
-            var providers = models.Select(m => new LlmProvider
+            var catalog = new (string ModelId, string CostTier)[]
             {
-                Name = "Claude", BaseUrl = "https://api.anthropic.com", ModelId = m,
-                Type = LlmType.ClaudeApi, IsAvailable = true, ApiKey = apiKey ?? ""
+                ("claude-opus-4-7",            "$$$"),
+                ("claude-opus-4-5",            "$$$"),
+                ("claude-sonnet-4-6",          "$$"),
+                ("claude-sonnet-4-20250514",   "$$"),
+                ("claude-haiku-4-5-20251001",  "$"),
+            };
+            var providers = catalog.Select(m => new LlmProvider
+            {
+                Name = "Claude",
+                ModelId = m.ModelId,
+                ApiKey = apiKey ?? "",
+                CostTier = m.CostTier,
             }).ToList();
 
             if (!string.IsNullOrEmpty(preferredModel))
@@ -135,11 +120,7 @@ BEHAVIOR RULES:
 
             try
             {
-                LlmResponse response;
-                if (provider.Type == LlmType.ClaudeApi) response = await CallClaudeApiAsync(provider);
-                else if (provider.Type == LlmType.OllamaLocal) response = await CallOllamaChatAsync(provider);
-                else response = await CallOpenAiChatAsync(provider);
-
+                var response = await CallClaudeApiAsync(provider);
                 _history.Add(new ChatMessage { Role = "assistant", Content = response.Text });
                 return response;
             }
@@ -225,49 +206,6 @@ BEHAVIOR RULES:
             int outputTokens = obj["usage"]?["output_tokens"]?.ToObject<int>() ?? 0;
 
             return new LlmResponse { Text = text, InputTokens = inputTokens, OutputTokens = outputTokens };
-        }
-
-        private async Task<LlmResponse> CallOllamaChatAsync(LlmProvider provider)
-        {
-            var msgs = _history.Select(m => new { role = m.Role, content = m.Content }).ToArray();
-            var payload = new { model = provider.ModelId, messages = msgs, stream = false, options = new { temperature = 0.3 } };
-            var resp = await _http.PostAsync($"{provider.BaseUrl}/api/chat",
-                new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json"));
-            resp.EnsureSuccessStatusCode();
-            var obj = JObject.Parse(await resp.Content.ReadAsStringAsync());
-            return new LlmResponse
-            {
-                Text = obj["message"]?["content"]?.ToString() ?? "",
-                InputTokens = obj["prompt_eval_count"]?.ToObject<int>() ?? 0,
-                OutputTokens = obj["eval_count"]?.ToObject<int>() ?? 0
-            };
-        }
-
-        private async Task<LlmResponse> CallOpenAiChatAsync(LlmProvider provider)
-        {
-            var msgs = _history.Select(m => new { role = m.Role, content = m.Content }).ToArray();
-            var payload = new { model = provider.ModelId, messages = msgs, temperature = 0.3, max_tokens = 2000 };
-            var resp = await _http.PostAsync($"{provider.BaseUrl}/v1/chat/completions",
-                new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json"));
-            resp.EnsureSuccessStatusCode();
-            var obj = JObject.Parse(await resp.Content.ReadAsStringAsync());
-            return new LlmResponse
-            {
-                Text = obj["choices"]?[0]?["message"]?["content"]?.ToString() ?? "",
-                InputTokens = obj["usage"]?["prompt_tokens"]?.ToObject<int>() ?? 0,
-                OutputTokens = obj["usage"]?["completion_tokens"]?.ToObject<int>() ?? 0
-            };
-        }
-
-        private async Task<List<string>> GetModelsAsync(string baseUrl, LlmType type)
-        {
-            string url = type == LlmType.OllamaLocal ? $"{baseUrl}/api/tags" : $"{baseUrl}/v1/models";
-            var resp = await _http.GetAsync(url);
-            resp.EnsureSuccessStatusCode();
-            var obj = JObject.Parse(await resp.Content.ReadAsStringAsync());
-            var arr = type == LlmType.OllamaLocal ? obj["models"]?.ToObject<JArray>() : obj["data"]?.ToObject<JArray>();
-            string key = type == LlmType.OllamaLocal ? "name" : "id";
-            return arr?.Select(m => m[key]?.ToString()).Where(n => n != null).ToList() ?? new List<string>();
         }
 
         private static string CleanCode(string raw)

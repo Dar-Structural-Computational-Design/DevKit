@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<Configurations>Debug;Release;REVIT2022;REVIT2023;REVIT2024;REVIT2025;REVIT2026</Configurations>
@@ -75,6 +75,14 @@
 
 	<ItemGroup>
 		<Resource Include="Resources\*.png" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Remove="Icons\Devkit32.png" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Include="Icons\Devkit32.png" />
 	</ItemGroup>
 
 </Project>

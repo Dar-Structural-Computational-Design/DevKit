@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Windows.Media.Imaging;
+using System.Windows.Media;
 using Autodesk.Revit.UI;
 using DevKit.Handlers;
 using DevKit.Services;
@@ -23,6 +25,9 @@ namespace DevKit
         private const string TAB = "DevKit";
 
         private static string api_key = "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";
+
+
+        public static string IconsPath = "DevKit.Icons";
         public Result OnStartup(UIControlledApplication app)
         {
             try
@@ -51,8 +56,8 @@ namespace DevKit
                 editorPanel.AddItem(new PushButtonData("cmdOpenEditor", "Open\nEditor", Assembly.GetExecutingAssembly().Location, "DevKit.Commands.OpenEditorCommand")
                 {
                     ToolTip = "Open the DevKit script editor",
-                    LargeImage = IconGeneratorService.CreateEditorIcon(32),
-                    Image = IconGeneratorService.CreateEditorIcon(16)
+                    LargeImage = PngImageSource($"{IconsPath}.Devkit32.png"),
+                    Image = PngImageSource($"{IconsPath}.Devkit32.png"),
                 });
 
                 ScriptsPanel = app.CreateRibbonPanel(TAB, "My Scripts");
@@ -99,5 +104,16 @@ namespace DevKit
             }) as PulldownButton;
             GroupPulldowns[groupName] = pulldown;
         }
+
+
+        private ImageSource PngImageSource(string embeddedPath)
+        {
+            Stream stream = this.GetType().Assembly.GetManifestResourceStream(embeddedPath);
+            var decoder = new PngBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
+
+            return decoder.Frames[0];
+        }
+
+
     }
 }
