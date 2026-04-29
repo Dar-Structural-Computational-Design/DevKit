@@ -5,7 +5,7 @@
         xmlns:views="clr-namespace:DevKit.Views"
         xmlns:avEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
         Title="DevKit — Revit Development Toolkit"
-        Width="1020" Height="800" MinWidth="800" MinHeight="600"
+        Width="1120" Height="850" MinWidth="800" MinHeight="600"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BgDeep}" Foreground="{DynamicResource TextPrimary}" FontFamily="Segoe UI"
         KeyDown="Window_KeyDown" Loaded="Window_Loaded">

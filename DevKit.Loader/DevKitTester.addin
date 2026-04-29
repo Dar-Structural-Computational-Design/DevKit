@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+	<AddIn Type="Application">
+		<Name>DevKit Loader (Dev)</Name>
+		<Assembly>C:\Users\Public\Documents\Dar_WL\C#\DevKit\DevKit.Loader\bin\REVIT2025\DevKit.Loader.dll</Assembly>
+		<FullClassName>DevKit.Loader.DevKitLoaderApp</FullClassName>
+		<AddInId>DD28C97C-CB23-4FED-9DA6-7F31F7E0B934</AddInId>
+		<VendorId>DAR</VendorId>
+		<VendorDescription>DevKit Tester — loads from VS bin folders, skips GitHub. Devs only.</VendorDescription>
+	</AddIn>
+</RevitAddIns>

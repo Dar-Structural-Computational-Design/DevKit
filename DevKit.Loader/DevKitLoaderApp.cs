@@ -34,22 +34,38 @@ namespace DevKit.Loader
         private object _innerApp;
         private MethodInfo _shutdownMi;
 
+        // The DevKit assembly we just loaded — exposed so the ribbon-button stub below can
+        // resolve DevKit's command classes via reflection at button-click time.
+        public static Assembly LoadedDevKitAssembly { get; private set; }
+
         public Result OnStartup(UIControlledApplication app)
         {
             try
             {
                 _revitVersion = app.ControlledApplication.VersionNumber; // "2022", "2023", ...
-                _localPath = Path.Combine(LocalBasePath, _revitVersion);
 
-                Directory.CreateDirectory(_localPath);
-
-                if (!SyncFromServer())
+                // Dev-mode shortcut: if the loader is running from its own VS bin folder
+                // (e.g. when DevKitTester.addin points at it), point _localPath at the sibling
+                // DevKit project's bin output for the same Revit version. Skip GitHub entirely.
+                // Lets us iterate by Build → Restart Revit, no zip/push/version-bump cycle.
+                string devLocal = TryResolveDevBinPath(_revitVersion);
+                if (devLocal != null)
                 {
-                    TaskDialog.Show("DevKit Loader",
-                        $"GitHub is unreachable and no local DevKit copy was found for Revit {_revitVersion}.\n\n" +
-                        $"Release feed: {RawBaseUrl}\n" +
-                        $"Local cache: {_localPath}");
-                    return Result.Failed;
+                    _localPath = devLocal;
+                }
+                else
+                {
+                    _localPath = Path.Combine(LocalBasePath, _revitVersion);
+                    Directory.CreateDirectory(_localPath);
+
+                    if (!SyncFromServer())
+                    {
+                        TaskDialog.Show("DevKit Loader",
+                            $"GitHub is unreachable and no local DevKit copy was found for Revit {_revitVersion}.\n\n" +
+                            $"Release feed: {RawBaseUrl}\n" +
+                            $"Local cache: {_localPath}");
+                        return Result.Failed;
+                    }
                 }
 
                 string localDll = Path.Combine(_localPath, DevKitDllName);
@@ -80,27 +96,33 @@ namespace DevKit.Loader
                 // On .NET 8 (Revit 2025+), Revit preloads its own (older) Microsoft.CodeAnalysis.dll.
                 // Use a custom AssemblyLoadContext so DevKit gets its OWN bundled Roslyn instead of
                 // Revit's. RevitAPI/RevitAPIUI/runtime assemblies fall through to the default context
-                // so types stay identity-equal across the boundary.
+                // so types stay identity-equal across the boundary. Ribbon-button entry points are
+                // routed through OpenEditorCommandStub (defined below in this loader assembly) so Revit
+                // never tries to load DevKit.dll into the Default ALC — that would create a duplicate
+                // instance and lose the Roslyn isolation.
                 var alc = new IsolatedLoadContext(_localPath);
-
-                // CRITICAL: Pre-load Roslyn into the isolated ALC BEFORE DevKit.dll is touched.
-                // This guarantees that when DevKit's JIT first resolves Microsoft.CodeAnalysis.CSharp,
-                // our 4.8.0 copy is already in the ALC and gets used instead of Revit's older one.
                 alc.LoadFromAssemblyPath(roslynCommon);
                 alc.LoadFromAssemblyPath(roslynCSharp);
-
                 asm = alc.LoadFromAssemblyPath(localDll);
 
                 AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
-
 #else
                 // On .NET Framework, Revit does not preload Roslyn — simple LoadFrom + AssemblyResolve works.
                 AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
                 asm = Assembly.LoadFrom(localDll);
 #endif
 
+                LoadedDevKitAssembly = asm;
+
                 var type = asm.GetType(DevKitAppFullName, throwOnError: true);
                 _innerApp = Activator.CreateInstance(type);
+
+                // Tell DevKit which DLL to point its ribbon button at. PushButtonData uses this path,
+                // so when Revit clicks the button it loads OUR loader DLL (already in Default ALC,
+                // single instance) instead of trying to load DevKit.dll — which would duplicate it
+                // and break Roslyn isolation.
+                type.GetField("LoaderAssemblyPath", BindingFlags.Public | BindingFlags.Static)
+                    ?.SetValue(null, typeof(DevKitLoaderApp).Assembly.Location);
 
                 var onStartup = type.GetMethod("OnStartup", new[] { typeof(UIControlledApplication) });
                 _shutdownMi = type.GetMethod("OnShutdown", new[] { typeof(UIControlledApplication) });
@@ -240,6 +262,32 @@ namespace DevKit.Loader
             }
         }
 
+        // Returns the dev-mode local path if this loader is running from a Visual Studio bin folder
+        // alongside a sibling DevKit project; null otherwise (production install). Side-steps the
+        // GitHub fetch and lets the loader's IsolatedLoadContext logic operate on freshly built
+        // local DLLs.
+        private static string TryResolveDevBinPath(string revitVersion)
+        {
+            try
+            {
+                string loaderDll = typeof(DevKitLoaderApp).Assembly.Location;
+                if (string.IsNullOrEmpty(loaderDll)) return null;
+                string loaderDir = Path.GetDirectoryName(loaderDll);
+                if (loaderDir == null) return null;
+
+                // Expected dev layout: <repo>/DevKit.Loader/bin/REVIT<v>/DevKit.Loader.dll
+                //                      <repo>/DevKit/bin/REVIT<v>/DevKit.dll
+                string parent3 = Directory.GetParent(loaderDir)?.Parent?.Parent?.FullName;
+                if (parent3 == null) return null;
+
+                string candidate = Path.Combine(parent3, "DevKit", "bin", "REVIT" + revitVersion);
+                if (File.Exists(Path.Combine(candidate, DevKitDllName)))
+                    return candidate;
+            }
+            catch { }
+            return null;
+        }
+
         private Assembly ResolveAssembly(object sender, ResolveEventArgs args)
         {
             try
@@ -282,5 +330,33 @@ namespace DevKit.Loader
             }
         }
 #endif
+    }
+
+    // Ribbon-button entry point. Lives in the loader (Default ALC) so Revit doesn't load DevKit.dll
+    // a second time on click. Forwards the call into DevKit's real command in the IsolatedLoadContext.
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
+    [Autodesk.Revit.Attributes.Regeneration(Autodesk.Revit.Attributes.RegenerationOption.Manual)]
+    public class OpenEditorCommandStub : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, Autodesk.Revit.DB.ElementSet elements)
+        {
+            try
+            {
+                var devkit = DevKitLoaderApp.LoadedDevKitAssembly;
+                if (devkit == null)
+                {
+                    message = "DevKit assembly not loaded — loader bootstrap failed.";
+                    return Result.Failed;
+                }
+                var cmdType = devkit.GetType("DevKit.Commands.OpenEditorCommand", throwOnError: true);
+                var cmd = (IExternalCommand)Activator.CreateInstance(cmdType);
+                return cmd.Execute(commandData, ref message, elements);
+            }
+            catch (Exception ex)
+            {
+                message = ex.ToString();
+                return Result.Failed;
+            }
+        }
     }
 }

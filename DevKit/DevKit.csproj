@@ -39,6 +39,8 @@
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)'=='REVIT2025'">
 		<RevitApiPath>C:\Program Files\Autodesk\Revit 2025</RevitApiPath>
+		<StartAction>Program</StartAction>
+		<StartProgram>C:\Program Files\Autodesk\Revit 2025\Revit.exe</StartProgram>
 		<RevitVersion>2025</RevitVersion>
 		<DefineConstants>$(DefineConstants);REVIT2025</DefineConstants>
 	</PropertyGroup>

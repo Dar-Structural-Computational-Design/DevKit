@@ -22,10 +22,12 @@ namespace DevKit
         public static RoslynCompilerService Compiler { get; private set; }
         public static string ScriptsFolderPath { get; private set; }
 
+        // Set by DevKit.Loader before OnStartup runs. Used to point ribbon-button PushButtonData
+        // at the loader DLL (which lives in Default ALC, single-instance) so Revit doesn't try to
+        // load DevKit.dll a second time when the user clicks a button.
+        public static string LoaderAssemblyPath;
+
         private const string TAB = "DevKit";
-
-        private static string api_key = "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";
-
 
         public static string IconsPath = "DevKit.Icons";
         public Result OnStartup(UIControlledApplication app)
@@ -59,7 +61,11 @@ namespace DevKit
                 app.CreateRibbonTab(TAB);
                 var editorPanel = app.CreateRibbonPanel(TAB, "Editor");
 
-                editorPanel.AddItem(new PushButtonData("cmdOpenEditor", "Open\nEditor", Assembly.GetExecutingAssembly().Location, "DevKit.Commands.OpenEditorCommand")
+                // Route through the loader's stub so Revit doesn't load DevKit.dll into the Default ALC.
+                // Falls back to direct DevKit load if running without the loader (dev/test scenarios).
+                string buttonDllPath = !string.IsNullOrEmpty(LoaderAssemblyPath) ? LoaderAssemblyPath : Assembly.GetExecutingAssembly().Location;
+                string buttonClassName = !string.IsNullOrEmpty(LoaderAssemblyPath) ? "DevKit.Loader.OpenEditorCommandStub" : "DevKit.Commands.OpenEditorCommand";
+                editorPanel.AddItem(new PushButtonData("cmdOpenEditor", "Open\nEditor", buttonDllPath, buttonClassName)
                 {
                     ToolTip = "Open the DevKit script editor",
                     LargeImage = PngImageSource($"{IconsPath}.Devkit32.png"),

@@ -10,6 +10,7 @@
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
 		<Version>1.0.0</Version>
+		<ApplicationManifest>DevKitTester.addin</ApplicationManifest>
 	</PropertyGroup>
 
 	<!-- TargetFramework: NET 8 for REVIT2025/REVIT2026 (their RevitAPI.dll targets .NET 8), net48 for all others -->
@@ -67,6 +68,12 @@
 
 	<ItemGroup>
 		<None Include="DevKit.Loader.addin" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="DevKitTester.addin">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
 	</ItemGroup>
 
 </Project>
