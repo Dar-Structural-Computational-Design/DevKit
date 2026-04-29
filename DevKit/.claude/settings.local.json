@@ -7,7 +7,21 @@
       "Bash(dotnet sln:*)",
       "Bash(for cfg:*)",
       "Bash(do echo:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(find 'C:/Program Files/Autodesk/Revit 2025' -name Microsoft.CodeAnalysis*.dll)",
+      "Bash(find 'C:/Program Files/Autodesk/Revit 2025' -name *CodeAnalysis*)",
+      "Bash(find 'C:/Program Files/Autodesk/Revit 2025' -name Microsoft.*)",
+      "Read(//d/Dar Projects/C#/DevKit/DevKit/Roaming/Autodesk/Revit/Addins/**)",
+      "Read(//d/Dar Projects/C#/DevKit/DevKit/$APPDATA/Autodesk/Revit/Addins/**)",
+      "Read(//c/ProgramData/Autodesk/Revit/Addins/2025/**)",
+      "Read(//c/Users/mosta/AppData/Roaming/Autodesk/Revit/Addins/2025/**)",
+      "Bash(find C:/Users/mosta/AppData/Roaming/Autodesk/Revit/Addins/2025 -iname *codeanalysis*)",
+      "Bash(find C:/Users/mosta/AppData/Roaming/Autodesk/Revit/Addins/2025 -iname *.dll)",
+      "Bash(find C:/ProgramData/Autodesk/Revit/Addins/2025 -iname *codeanalysis*)",
+      "Bash(find 'C:/Program Files/Autodesk/Revit 2025/AddIns' -name *.dll)",
+      "Bash(find 'C:/Program Files/Autodesk/Revit 2025/AddIns/DynamoForRevit' -name *odeAnalysi*)",
+      "Read(//c/ProgramData/Autodesk/Revit/Addins/2024/**)",
+      "Read(//c/ProgramData/Autodesk/Revit/Addins/2024/DevKit/**)"
     ]
   }
 }
