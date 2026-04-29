@@ -12,6 +12,7 @@ namespace DevKit.Models
         [JsonProperty("sourceFileName")] public string SourceFileName { get; set; }
         [JsonProperty("createdAt")] public string CreatedAt { get; set; }
         [JsonProperty("group")] public string Group { get; set; } = "Scripts";
+        [JsonProperty("iconGlyph")] public string IconGlyph { get; set; }
     }
 
     public class ScriptsManifest

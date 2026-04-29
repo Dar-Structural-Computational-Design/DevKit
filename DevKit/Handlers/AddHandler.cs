@@ -22,11 +22,12 @@ namespace DevKit.Handlers
                 var pulldown = DevKitApp.GroupPulldowns[group];
                 if (pulldown == null) { Report(false, $"Pulldown '{group}' not found."); return; }
 
+                string iconGlyph = SharedState.IconGlyph;
                 pulldown.AddPushButton(new PushButtonData(buttonId, buttonName, dllPath, className)
                 {
                     ToolTip = $"DevKit: {buttonName}",
-                    LargeImage = IconGeneratorService.CreateScriptButtonIcon(buttonName, 32),
-                    Image = IconGeneratorService.CreateScriptButtonIcon(buttonName, 16)
+                    LargeImage = IconGeneratorService.CreateScriptButtonIcon(buttonName, iconGlyph, 32),
+                    Image = IconGeneratorService.CreateScriptButtonIcon(buttonName, iconGlyph, 16)
                 });
                 Report(true, $"Button '{buttonName}' added to [{group}]!");
             }

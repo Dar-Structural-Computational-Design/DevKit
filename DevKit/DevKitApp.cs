@@ -87,8 +87,8 @@ namespace DevKit
                         GroupPulldowns[grp].AddPushButton(new PushButtonData(entry.Id, entry.ButtonName, dllPath, entry.ClassName)
                         {
                             ToolTip = $"DevKit: {entry.ButtonName}",
-                            LargeImage = IconGeneratorService.CreateScriptButtonIcon(entry.ButtonName, 32),
-                            Image = IconGeneratorService.CreateScriptButtonIcon(entry.ButtonName, 16)
+                            LargeImage = IconGeneratorService.CreateScriptButtonIcon(entry.ButtonName, entry.IconGlyph, 32),
+                            Image = IconGeneratorService.CreateScriptButtonIcon(entry.ButtonName, entry.IconGlyph, 16)
                         });
                     }
                     catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[DevKit] Restore failed: {entry.ButtonName}: {ex.Message}"); }

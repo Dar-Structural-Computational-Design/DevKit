@@ -43,13 +43,13 @@ namespace DevKit.Services
                 JsonConvert.SerializeObject(manifest, Formatting.Indented), Encoding.UTF8);
         }
 
-        public ScriptEntry AddScript(string buttonName, string className, string dllFileName, string sourceCode, string group = "Scripts")
+        public ScriptEntry AddScript(string buttonName, string className, string dllFileName, string sourceCode, string group = "Scripts", string iconGlyph = null)
         {
             string id = "script_" + Guid.NewGuid().ToString("N").Substring(0, 10);
             string sourceFileName = Path.GetFileNameWithoutExtension(dllFileName) + ".cs";
             File.WriteAllText(Path.Combine(_scriptsFolderPath, sourceFileName), sourceCode, Encoding.UTF8);
 
-            var entry = new ScriptEntry { Id = id, ButtonName = buttonName, ClassName = className, DllFileName = dllFileName, SourceFileName = sourceFileName, CreatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), Group = group };
+            var entry = new ScriptEntry { Id = id, ButtonName = buttonName, ClassName = className, DllFileName = dllFileName, SourceFileName = sourceFileName, CreatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), Group = group, IconGlyph = iconGlyph };
             var manifest = LoadFullManifest();
             manifest.Scripts.Add(entry);
             if (!manifest.Groups.Any(g => g.Equals(group, StringComparison.OrdinalIgnoreCase))) manifest.Groups.Add(group);

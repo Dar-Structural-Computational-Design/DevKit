@@ -42,8 +42,20 @@ namespace DevKit.ViewModels
         private const double DAILY_LIMIT_TURBO = 5.0;
         private const string TURBO_PASSWORD = "devkit2026";
         private string _manualPrompt = "", _generatedPrompt = "";
+        private string _selectedIcon;
 
         public string Code { get => _code; set => SetProperty(ref _code, value); }
+        public string SelectedIcon { get => _selectedIcon; set => SetProperty(ref _selectedIcon, value); }
+        public List<string> AvailableIcons { get; } = new List<string>(DevKit.Services.IconGeneratorService.AvailableGlyphs);
+        public string VersionDisplay
+        {
+            get
+            {
+                var v = typeof(EditorViewModel).Assembly.GetName().Version;
+                return v != null ? $"v{v.Major}.{v.Minor}.{v.Build}" : "";
+            }
+        }
+        public string CreditDisplay => "Created by Computational Design Team — Dar Cairo";
         public string ButtonName { get => _buttonName; set => SetProperty(ref _buttonName, value); }
         public string OutputText { get => _outputText; set => SetProperty(ref _outputText, value); }
         public string StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
@@ -211,8 +223,9 @@ namespace DevKit.ViewModels
                 var result = _compiler.CompileForBuild(code, className, dllPath);
                 if (!result.Success) { ShowError("COMPILATION ERRORS:\n\n" + result.ErrorSummary); _lastError = result.ErrorSummary; HasError = true; SetStatus("Compilation failed.", "#F38BA8"); ButtonsEnabled = true; return; }
                 string group = SelectedGroup ?? "Scripts";
-                var entry = _scriptManager.AddScript(name, result.ClassName, dllFileName, code, group);
-                SharedState.DllPath = dllPath; SharedState.ClassName = result.ClassName; SharedState.ButtonName = name; SharedState.ButtonId = entry.Id; SharedState.GroupName = group;
+                string iconGlyph = SelectedIcon;
+                var entry = _scriptManager.AddScript(name, result.ClassName, dllFileName, code, group, iconGlyph);
+                SharedState.DllPath = dllPath; SharedState.ClassName = result.ClassName; SharedState.ButtonName = name; SharedState.ButtonId = entry.Id; SharedState.GroupName = group; SharedState.IconGlyph = iconGlyph;
                 SharedState.OnResultCallback = (ok, msg) => _dispatcher.Invoke(() =>
                 {
                     if (ok) ShowOutput($"[OK] {msg}");
