@@ -13,6 +13,7 @@ namespace DevKit.Helpers
         public static string GroupName { get; set; }
         public static string IconGlyph { get; set; }
         public static string DeleteScriptId { get; set; }
+        public static double ToolCost { get; set; } // dollars spent on the AI calls that generated this tool
         public static Action<bool, string> OnResultCallback { get; set; }
     }
 }

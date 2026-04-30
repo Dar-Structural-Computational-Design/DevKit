@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics;
+using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -238,6 +241,114 @@ namespace DevKit.Views
         {
             _vm.ClaudeApiKey = pwdApiKey.Password;
             _vm.SaveApiKeyCommand.Execute(null);
+        }
+
+        // TODO: open Outlook with a feedback/bug-report email pre-addressed to the CDT.
+        private void BtnSendFeedback_Click(object sender, RoutedEventArgs e)
+        {
+
+            string recipient = "Computational.Design.ST@dar.com";
+            string cc = "Ahmed.Gewaily@dar.com;mostafa.elbagoury@dar.com";
+            string subject = $"DevKit {Assembly.GetExecutingAssembly().GetName().Version} - Feedback";
+            string body = "Type your message here.";
+
+            try
+            {
+                // Check common paths for Outlook.exe
+                string outlookPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                    "Microsoft Office",
+                    "root",
+                    "Office16",
+                    "OUTLOOK.EXE"
+                );
+
+                if (!File.Exists(outlookPath))
+                {
+                    // Check for 32-bit Office on 64-bit Windows
+                    outlookPath = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                        "Microsoft Office",
+                        "root",
+                        "Office16",
+                        "OUTLOOK.EXE"
+                    );
+                }
+
+                if (!File.Exists(outlookPath))
+                {
+                    throw new FileNotFoundException("Outlook executable not found. Please ensure Outlook is installed.");
+                }
+
+                // Properly escape the subject and body
+                string escapedSubject = Uri.EscapeDataString(subject);
+                string escapedBody = Uri.EscapeDataString(body);
+                string escapedCc = Uri.EscapeDataString(cc);
+
+                // Use /m parameter with CC support
+                string arguments = $"/c ipm.note /m \"{recipient}?cc={escapedCc}&subject={escapedSubject}&body={escapedBody}\"";
+
+                // Launch Outlook
+                Process.Start(outlookPath, arguments);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("⚠️ Failed to launch Outlook: " + ex.Message);
+            }
+        }
+
+        // TODO: open Outlook with a "please send me the Turbo Mode password" email pre-addressed to the CDT.
+        private void BtnRequestTurboPassword_Click(object sender, RoutedEventArgs e)
+        {
+            string recipient = "Computational.Design.ST@dar.com";
+            string cc = "Ahmed.Gewaily@dar.com;mostafa.elbagoury@dar.com";
+            string subject = $"DevKit {Assembly.GetExecutingAssembly().GetName().Version} - Request for Turbo Mode Password";
+            string body = "I'd like to get the password for Turbo Mode.";
+
+            try
+            {
+                // Check common paths for Outlook.exe
+                string outlookPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                    "Microsoft Office",
+                    "root",
+                    "Office16",
+                    "OUTLOOK.EXE"
+                );
+
+                if (!File.Exists(outlookPath))
+                {
+                    // Check for 32-bit Office on 64-bit Windows
+                    outlookPath = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                        "Microsoft Office",
+                        "root",
+                        "Office16",
+                        "OUTLOOK.EXE"
+                    );
+                }
+
+                if (!File.Exists(outlookPath))
+                {
+                    throw new FileNotFoundException("Outlook executable not found. Please ensure Outlook is installed.");
+                }
+
+                // Properly escape the subject and body
+                string escapedSubject = Uri.EscapeDataString(subject);
+                string escapedBody = Uri.EscapeDataString(body);
+                string escapedCc = Uri.EscapeDataString(cc);
+
+                // Use /m parameter with CC support
+                string arguments = $"/c ipm.note /m \"{recipient}?cc={escapedCc}&subject={escapedSubject}&body={escapedBody}\"";
+
+                // Launch Outlook
+                Process.Start(outlookPath, arguments);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("⚠️ Failed to launch Outlook\nPlease Contact: mostafa.elbagoury@" + ex.Message);
+            }
+
         }
 
         private void Window_KeyDown(object sender, KeyEventArgs e)

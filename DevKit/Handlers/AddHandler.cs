@@ -30,6 +30,17 @@ namespace DevKit.Handlers
                     Image = IconGeneratorService.CreateScriptButtonIcon(buttonName, iconGlyph, 16)
                 });
                 Report(true, $"Button '{buttonName}' added to [{group}]!");
+
+                // Telemetry / audit fields — populated for downstream implementation
+                // (logging, usage reporting, etc).
+                //string pcName = Environment.MachineName;
+                //string domainName = Environment.UserDomainName;
+                //string toolName = buttonName;
+                //string groupName = group;
+                //double toolCost = SharedState.ToolCost; // set by EditorViewModel from AI cost tracking before raising AddEvent
+                //DateTime timestamp = DateTime.Now;
+
+
             }
             catch (Exception ex) { Report(false, $"Failed: {ex.GetType().Name}: {ex.Message}"); }
         }

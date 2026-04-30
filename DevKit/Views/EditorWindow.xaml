@@ -422,6 +422,94 @@
                              BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="10,8" Cursor="IBeam"/>
                 </Grid>
             </TabItem>
+
+            <!-- TAB: Feedback & Support -->
+            <TabItem Header="  ✉ Feedback  ">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <Border Background="{DynamicResource BgCard}" CornerRadius="6" Padding="16,12" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Get in touch" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource Accent}" Margin="0,0,0,4"/>
+                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextSecondary}">
+                                Found a bug? Have an idea for a new feature? Need access to Turbo Mode? The Computational Design Team is one click away.
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Send Feedback Card -->
+                    <Border Grid.Row="1" Background="{DynamicResource BgElevated}" CornerRadius="6" Padding="16,14" Margin="0,0,0,10" BorderBrush="{DynamicResource Border}" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="📨 Send Feedback or Report a Bug" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,4"/>
+                                <TextBlock TextWrapping="Wrap" FontSize="11.5" Foreground="{DynamicResource TextMuted}">
+                                    Opens a new email in Outlook, pre-addressed to the CDT, so you can describe the issue or suggestion.
+                                </TextBlock>
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    x:Name="btnSendFeedback"
+                                    Style="{DynamicResource Btn}"
+                                    Background="{DynamicResource Accent}"
+                                    Foreground="#FFF"
+                                    Content="Send" Width="150"
+                                    FontSize="12"
+                                    FontWeight="SemiBold"
+                                    Padding="20,10"
+                                    VerticalAlignment="Center"
+                                    Click="BtnSendFeedback_Click"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Request Turbo Password Card -->
+                    <Border Grid.Row="2" Background="{DynamicResource BgElevated}" CornerRadius="6" Padding="16,14" Margin="0,0,0,10" BorderBrush="{DynamicResource Border}" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,4">
+                                    <Run Foreground="{DynamicResource AccentYellow}">⚡</Run><Run Text=" Request Turbo Mode Password"/>
+                                </TextBlock>
+                                <TextBlock TextWrapping="Wrap" FontSize="11.5" Foreground="{DynamicResource TextMuted}">
+                                    Turbo Mode raises your daily Claude API limit from $1 to $5. Sends a request email to the CDT — they'll reply with the password.
+                                </TextBlock>
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    x:Name="btnRequestTurboPassword"
+                                    Style="{DynamicResource Btn}"
+                                    Background="{DynamicResource AccentYellow}"
+                                    Foreground="#1E1E2E" Width="150"
+                                    Content="Request Password"
+                                    FontSize="12"
+                                    FontWeight="SemiBold"
+                                    Padding="20,10"
+                                    VerticalAlignment="Center"
+                                    Click="BtnRequestTurboPassword_Click"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Footer credits -->
+                    <Border Grid.Row="3" Background="{DynamicResource BgCard}" CornerRadius="6" Padding="16,14" Margin="0,8,0,0" VerticalAlignment="Top">
+                        <StackPanel>
+                            <TextBlock Text="Computational Design Team — Dar Cairo" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,4"/>
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource TextMuted}">
+                                DevKit is built and maintained internally. Your feedback shapes what gets prioritized next.
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
         </TabControl>
 
         <!-- STATUS -->

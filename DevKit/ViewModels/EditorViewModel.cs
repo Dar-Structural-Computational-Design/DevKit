@@ -236,6 +236,18 @@ namespace DevKit.ViewModels
                 DevKitApp.AddEvent.Raise();
             }
             catch (Exception ex) { ShowError($"Error:\n{ex.Message}"); _lastError = ex.Message; HasError = true; SetStatus("Error.", "#F38BA8"); ButtonsEnabled = true; }
+
+
+
+
+
+
+
+
+
+
+
+
         }
 
         // ── SCRIPTS ──
@@ -467,23 +479,9 @@ namespace DevKit.ViewModels
         {
             if (!_isTurboMode)
             {
-                var dlg = new Window
-                {
-                    Title = "Turbo Mode", Width = 340, Height = 160, WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                    Owner = _ownerWindow, ResizeMode = ResizeMode.NoResize, Background = System.Windows.Media.Brushes.White
-                };
-                var sp = new StackPanel { Margin = new Thickness(16) };
-                sp.Children.Add(new TextBlock { Text = "Enter Turbo Mode password:", Margin = new Thickness(0, 0, 0, 8), FontSize = 13 });
-                var pwdBox = new PasswordBox { FontSize = 13, Padding = new Thickness(6, 4, 6, 4) };
-                sp.Children.Add(pwdBox);
-                var btn = new Button { Content = "Activate", Margin = new Thickness(0, 12, 0, 0), Padding = new Thickness(20, 6, 20, 6), HorizontalAlignment = HorizontalAlignment.Right };
-                btn.Click += (s, e) => { dlg.Tag = pwdBox.Password; dlg.DialogResult = true; };
-                sp.Children.Add(btn);
-                dlg.Content = sp;
-                pwdBox.KeyDown += (s, e) => { if (e.Key == Key.Enter) { dlg.Tag = pwdBox.Password; dlg.DialogResult = true; } };
-
+                var dlg = new Views.TurboPasswordWindow { Owner = _ownerWindow };
                 if (dlg.ShowDialog() != true) return;
-                if ((string)dlg.Tag != TURBO_PASSWORD) { ShowError("Incorrect password."); return; }
+                if (dlg.Password != TURBO_PASSWORD) { ShowError("Incorrect password."); return; }
                 IsTurboMode = true;
                 AiStatus = "TURBO MODE activated — $5 daily limit";
                 SetStatus("Turbo Mode ON", "#F9E2AF");
