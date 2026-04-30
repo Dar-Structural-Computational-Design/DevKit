@@ -37,6 +37,9 @@ namespace DevKit.ViewModels
         private string _lastError = "";
         private UserSettings _settings;
         private double _totalCost;
+        // Cumulative AI cost spent on the current tool — accumulates with each AddCost call,
+        // gets stamped onto SharedState.ToolCost when the user clicks Add, then resets.
+        private double _currentToolCost;
         private bool _isTurboMode;
         private const double DAILY_LIMIT_NORMAL = 1.0;
         private const double DAILY_LIMIT_TURBO = 5.0;
@@ -144,7 +147,7 @@ namespace DevKit.ViewModels
             RefreshScriptsCommand = new RelayCommand(ExecuteRefreshScripts);
             AiGenerateCommand = new RelayCommand(async () => await ExecuteAiGenerate());
             AiSendErrorCommand = new RelayCommand(async () => await ExecuteAiSendError());
-            AiClearChatCommand = new RelayCommand(() => { _llmService.ClearHistory(); ChatHistory.Clear(); AiStatus = "Chat cleared."; });
+            AiClearChatCommand = new RelayCommand(() => { _llmService.ClearHistory(); ChatHistory.Clear(); _currentToolCost = 0; AiStatus = "Chat cleared."; });
             SaveApiKeyCommand = new RelayCommand(ExecuteSaveApiKey);
             CreateGroupCommand = new RelayCommand(ExecuteCreateGroup);
             DeleteGroupCommand = new RelayCommand(ExecuteDeleteGroup);
@@ -226,9 +229,10 @@ namespace DevKit.ViewModels
                 string iconGlyph = SelectedIcon;
                 var entry = _scriptManager.AddScript(name, result.ClassName, dllFileName, code, group, iconGlyph);
                 SharedState.DllPath = dllPath; SharedState.ClassName = result.ClassName; SharedState.ButtonName = name; SharedState.ButtonId = entry.Id; SharedState.GroupName = group; SharedState.IconGlyph = iconGlyph;
+                SharedState.ToolCost = _currentToolCost;
                 SharedState.OnResultCallback = (ok, msg) => _dispatcher.Invoke(() =>
                 {
-                    if (ok) ShowOutput($"[OK] {msg}");
+                    if (ok) { ShowOutput($"[OK] {msg}"); _currentToolCost = 0; }
                     else ShowError($"[FAIL] {msg}");
                     SetStatus(ok ? "Button added!" : "Failed.", ok ? "#A6E3A1" : "#F38BA8");
                     ButtonsEnabled = true; ExecuteRefreshScripts();
@@ -573,7 +577,9 @@ namespace DevKit.ViewModels
             else if (modelId.Contains("opus-4-5")) { inputRate = 5.0; outputRate = 25.0; }
             else if (modelId.Contains("opus")) { inputRate = 15.0; outputRate = 75.0; }
 
-            TotalCost += (inputTokens * inputRate / 1_000_000) + (outputTokens * outputRate / 1_000_000);
+            double delta = (inputTokens * inputRate / 1_000_000) + (outputTokens * outputRate / 1_000_000);
+            TotalCost += delta;
+            _currentToolCost += delta;
             _settings.DailyCost = _totalCost;
             _settings.DailyCostDate = DateTime.Now.ToString("yyyy-MM-dd");
             _settings.Save(DevKitApp.ScriptsFolderPath);

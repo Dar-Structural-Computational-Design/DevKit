@@ -7,8 +7,8 @@ using System.Windows;
 [assembly: AssemblyCompany("DevKit")]
 [assembly: AssemblyProduct("DevKit")]
 [assembly: AssemblyCopyright("Copyright © 2025")]
-[assembly: AssemblyVersion("1.0.2")]
-[assembly: AssemblyFileVersion("1.0.2")]
+[assembly: AssemblyVersion("1.0.3")]
+[assembly: AssemblyFileVersion("1.0.3")]
 [assembly: ComVisible(false)]
 
 [assembly: ThemeInfo(ResourceDictionaryLocation.None, ResourceDictionaryLocation.SourceAssembly)]

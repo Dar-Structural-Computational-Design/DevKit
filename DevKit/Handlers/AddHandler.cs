@@ -33,16 +33,21 @@ namespace DevKit.Handlers
 
                 // Telemetry / audit fields — populated for downstream implementation
                 // (logging, usage reporting, etc).
-                //string pcName = Environment.MachineName;
-                //string domainName = Environment.UserDomainName;
-                //string toolName = buttonName;
-                //string groupName = group;
-                //double toolCost = SharedState.ToolCost; // set by EditorViewModel from AI cost tracking before raising AddEvent
-                //DateTime timestamp = DateTime.Now;
+                string pcName = Environment.UserName;
+                string domainName = Environment.UserDomainName;
+                string toolName = buttonName;
+                string groupName = group;
+                double toolCost = SharedState.ToolCost; // set by EditorViewModel from AI cost tracking before raising AddEvent
+                DateTime timestamp = DateTime.Now;
 
+                NexusLog.NexusLogger.AddDevkitToNexus(pcName, toolName, groupName, timestamp, domainName, toolCost);
 
             }
-            catch (Exception ex) { Report(false, $"Failed: {ex.GetType().Name}: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                Report(false, $"Failed: {ex.GetType().Name}: {ex.Message}");
+                NexusLog.NexusLogger.AddExceptionToNexus("DevKit", uiApp?.ActiveUIDocument?.Document?.Title ?? "Not Found!", ex);
+            }
         }
         public string GetName() => "DevKit_AddHandler";
         private void Report(bool ok, string msg) { try { SharedState.OnResultCallback?.Invoke(ok, msg); } catch { } }
