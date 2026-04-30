@@ -43,10 +43,34 @@ namespace DevKit
                         app.ControlledApplication.VersionNumber);
                 }
 
+                // Scripts folder lives OUTSIDE the loader's cache path (addinFolder), as a sibling
+                // of the per-version cache directory. The loader wipes addinFolder on every update,
+                // so storing scripts there used to nuke all user work. New layout:
+                //   %AppData%\DevKit\<RevitVersion>\           ← cache, wiped on update (addinFolder)
+                //   %AppData%\DevKit\Scripts\<RevitVersion>\   ← user scripts, never wiped
+                ScriptsFolderPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "DevKit", "Scripts", app.ControlledApplication.VersionNumber);
+
+                // One-time migration from the legacy in-cache location. This is a no-op for users
+                // who already lost their scripts to a wipe (source folder won't exist), but covers
+                // the edge case where DevKit updates without the loader running its wipe pass.
+                try
+                {
+                    string legacyScripts = Path.Combine(addinFolder, "DevKit_Scripts");
+                    if (Directory.Exists(legacyScripts) && !Directory.Exists(ScriptsFolderPath))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(ScriptsFolderPath));
+                        Directory.Move(legacyScripts, ScriptsFolderPath);
+                    }
+                }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[DevKit] Script migration skipped: {ex.Message}"); }
+
+                string scriptsRoot = ScriptsFolderPath; // local capture for the closure
                 AppDomain.CurrentDomain.AssemblyResolve += (s, args) =>
                 {
                     string dll = new AssemblyName(args.Name).Name + ".dll";
-                    foreach (string folder in new[] { addinFolder, Path.Combine(addinFolder, "Libraries"), Path.Combine(addinFolder, "DevKit_Scripts", "Libraries") })
+                    foreach (string folder in new[] { addinFolder, Path.Combine(addinFolder, "Libraries"), Path.Combine(scriptsRoot, "Libraries") })
                     {
                         string p = Path.Combine(folder, dll);
                         if (File.Exists(p)) return Assembly.LoadFrom(p);
@@ -54,7 +78,6 @@ namespace DevKit
                     return null;
                 };
 
-                ScriptsFolderPath = Path.Combine(addinFolder, "DevKit_Scripts");
                 ScriptManager = new ScriptManagerService(ScriptsFolderPath);
                 Compiler = new RoslynCompilerService(ScriptsFolderPath);
 
